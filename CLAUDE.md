@@ -19,6 +19,81 @@ Act as a multi-model workflow architect and execution engine.
 | **Mem0** | Persistent memory for patterns, past fixes, learned context | `mcp__mem0__*` | Working (proven) |
 | **Optio** | Task orchestration, PR lifecycle, CI integration | `optio` CLI | Working (K8s) |
 
+## Model Families
+
+Models behave differently based on their architecture. Match task to family.
+
+### Claude-like (instruction-following, structured output)
+
+| Model | Provider | Notes |
+|-------|----------|-------|
+| **Claude Opus/Sonnet/Haiku** | Native | Best for mechanics-driven prompts |
+| **DeepSeek** | Direct API | Claude-like reasoning, good for chain-of-thought |
+| **Moonshot (Kimi)** | Direct API | Very Claude-like, excellent for long context |
+| **MiniMax** | Direct API | Good instruction following |
+
+### GPT-like (explicit reasoning, principle-driven)
+
+| Model | Provider | Notes |
+|-------|----------|-------|
+| **GPT-4o** | OpenRouter | Responds to concise principles over detailed checklists |
+
+### Speed-tier (fast, cheap, utility work)
+
+| Model | Provider | Best For |
+|-------|----------|----------|
+| **Gemini Flash** | Direct API | Fast search, doc retrieval |
+| **MiniMax** | Direct API | Quick utility tasks |
+| **GPT-4o-mini** | OpenRouter | Fast reasoning tasks |
+
+**Selection rule:** Match model family to prompt style. Don't waste expensive models on utility tasks.
+
+## Prompt Engineering by Model Family
+
+Different model families require different prompt strategies:
+
+| Family | Prompt Style | Characteristics | Example |
+|--------|--------------|-----------------|---------|
+| **Claude-like** | Mechanics-driven | Detailed checklists, templates, step-by-step procedures. More rules = more compliance | 1,100 lines for complex planning |
+| **GPT-like** | Principle-driven | Concise principles, XML-tagged structure, explicit decision criteria. More rules = more drift | ~121 lines for same outcome |
+
+### Decision Complete Principle
+
+For planning tasks, a plan must leave **ZERO decisions to the implementer**.
+
+- GPT models follow this literally when stated as a principle
+- Claude models need enforcement mechanisms (checklists, validation steps)
+- If the implementer must make choices, the plan is incomplete
+
+### Dual-Prompt Pattern
+
+When supporting multiple model families for the same task:
+
+1. Detect model family at runtime
+2. Load appropriate prompt variant
+3. Priority: Claude > GPT > Claude-like fallbacks
+
+## Fallback Chain Design
+
+Each task type has an ordered fallback chain. Degrade through same-family first.
+
+**Pattern:**
+```
+Primary (best) → Same-family alternative → Cross-family fallback → Cheap fallback
+```
+
+**Example chains:**
+
+| Task | Chain |
+|------|-------|
+| Heavy reasoning | Claude → DeepSeek → Moonshot → GPT-4o |
+| Fast search | MiniMax → Gemini Flash → GPT-4o-mini |
+| Code review | Claude → Gemini → DeepSeek |
+| Long context | Moonshot → Claude → DeepSeek |
+| Edge case hunting | MiniMax → DeepSeek → Claude |
+
+**Rule:** Don't skip to expensive models for utility work. Explore/search tasks should use speed-tier models.
+
 ## Doppler Configuration
 
 All secrets managed via Doppler (project: `personal`, config: `dev`):
@@ -70,7 +145,37 @@ For all non-trivial engineering tasks, return:
 7. **Risks Introduced**
 8. **Verification Steps**
 
+### Evidence Standard
+
+For all non-trivial claims:
+
+- Separate `verified`, `inferred`, and `assumed`
+- Prefer runtime evidence over code inspection when the question is operational
+- Prefer primary sources over summaries when checking external systems
+- If evidence is missing, say exactly what is missing
+- Do not treat the existence of code as proof that a system is working
+
+### Uncertainty Escalation Ladder
+
+Use the smallest workflow that matches the risk:
+
+1. `direct fix`
+   - Use when target, cause, and change are obvious
+2. `guided discovery`
+   - Use when file or symbol location is unclear
+3. `advisory board`
+   - Use when there are 2 or more plausible root causes
+4. `multifix`
+   - Use when the change is regression-prone, cross-file, production-sensitive, or confidence is incomplete
+
+Rule:
+
+- Do not make risky edits from a single plausible theory when a second plausible theory exists
+- Escalate before editing, not after causing drift
+
 ## Model Selection Guide
+
+### By Task Type
 
 | Task Type | Primary | Secondary | Builder | Memory |
 |-----------|---------|-----------|---------|--------|
@@ -81,6 +186,30 @@ For all non-trivial engineering tasks, return:
 | Edge cases | Claude | MiniMax | - | Mem0 |
 | Uncensored analysis | Claude | Venice | - | - |
 | Fast patches | Claude | - | Codex | - |
+
+### By Speed Requirement
+
+| Speed Need | Model Choice | Use Case |
+|------------|--------------|----------|
+| **Ultra-fast** | MiniMax, Gemini Flash | Search, grep, retrieval, doc lookup |
+| **Fast** | GPT-4o-mini, DeepSeek | Quick analysis, simple reasoning |
+| **Balanced** | Claude Sonnet, Gemini | Code review, moderate complexity |
+| **Deep** | Claude Opus, DeepSeek R1 | Architecture, complex bugs, planning |
+| **Long context** | Moonshot, Claude | Cross-file analysis, large codebases |
+
+### Agent Specialization Pattern
+
+Don't use one model for everything. Match agent role to model strength:
+
+| Agent Role | Model Tier | Rationale |
+|------------|------------|-----------|
+| **Main reasoning** | Opus/DeepSeek | Needs deep analysis |
+| **Planning** | Opus + GPT (dual-prompt) | Different prompts per family |
+| **Fast search** | MiniMax/Gemini Flash | Speed > intelligence for grep |
+| **Code generation** | Codex | Specialized for patches |
+| **Review/verification** | Multiple models | Cross-check via disagreement |
+
+**Utility agent rule:** Never "upgrade" search/grep agents to expensive models. It wastes tokens. Speed matters more than intelligence for retrieval tasks.
 
 ## API Endpoints (Direct Access)
 
@@ -118,6 +247,14 @@ Automatically use multi-model workflow for:
 - Production safety checks
 - Security audits
 
+Use the full diagnosis schema below when:
+
+- the task is non-trivial
+- the user asks for a review
+- the change touches production behavior
+- the root cause is not immediately obvious
+- the task spans multiple files or systems
+
 ## Hard Rules
 
 - **Claude decides** - Final judgment on all findings
@@ -128,6 +265,8 @@ Automatically use multi-model workflow for:
 - Force disagreement checking
 - Smallest safe change principle
 - **Direct API first** - Only use OpenRouter for models without direct access
+- No operational claim without evidence
+- No “works” claim from code inspection alone
 
 ---
 
@@ -200,6 +339,18 @@ Operating constraints for this agent. Separated by enforcement layer.
 - "Done" requires verification was performed
 - If incomplete or blocked, state what remains
 - Do not present a guess as a conclusion
+- For production or operational checks, include the exact proof object when available
+
+**Review schema (default for non-trivial work):**
+- Diagnosis
+- Competing explanations
+- Confirmed findings
+- Rejected findings
+- Change made
+- Why it works
+- Risks introduced
+- Verification performed
+- Remaining uncertainty
 
 ### What I Cannot Control (runtime behaviors)
 
@@ -221,9 +372,144 @@ I can work with these behaviors but cannot override them.
 | Retrying with identical parameters after failure | Change scope or approach |
 | Globbing `**/*` without path constraint | Add path filter |
 | Claiming "done" without verification step | Verify first |
+| Claiming a live system is healthy without runtime evidence | Gather runtime evidence first |
 | Multiple writes to same file in parallel | Serialize |
 | Storing secrets or sensitive data to memory | Redact or skip |
 | Proceeding with risky implementation while confidence is incomplete and /multifix was not used | Use /multifix first |
+| Using expensive models (Opus/GPT-4o) for utility tasks (search, grep, retrieval) | Use speed-tier models instead |
+| Applying Claude-style mechanics prompts to GPT models | Use principle-driven prompts for GPT |
+| Creating plans that leave decisions to the implementer | Apply Decision Complete principle |
+
+---
+
+## Operational Skills
+
+Higher-level patterns that build on the core protocol. Invoke explicitly when a trigger matches.
+
+### Postmortem
+
+**Trigger:** Failed fix, regression, rollback, repeated retry, broken test, broken deploy, user-reported breakage.
+
+**Purpose:** Learn from failure instead of moving on blindly.
+
+**Output:**
+- Issue: what went wrong
+- Root cause: why it happened
+- Failed assumption: what was believed that turned out false
+- Why not caught earlier: what check or test would have caught this
+- Missing guardrail: what rule or automation should exist
+- Severity: critical / important / minor
+- Confidence: verified / medium / assumed
+- Solution: how it was fixed
+- Prevention: how to avoid it in the future
+- Memory to write (see Memory section)
+- Rule or workflow to change
+
+### Self-Healing
+
+**Trigger:** User correction, failed attempt, reverted edit, near miss, repeated mistake.
+
+**Purpose:** Convert mistakes into future decision improvements. This is meta-memory: learning how to decide better, not just storing more content.
+
+**Before storing** (see Memory section):
+- Compare against existing memories to avoid duplicates
+- Skip trivial, fleeting, or speculative content
+- Split distinct learnings into separate items
+
+**Store via Mem0:**
+- Mistake pattern
+- Missed signal
+- Better future decision rule
+- Recovery action
+- Confidence: verified / medium / assumed
+
+### Memory Map
+
+**Trigger:** Entering unfamiliar repo, subsystem, or architecture-sensitive area.
+
+**Purpose:** Reduce repeated rediscovery and improve repo awareness.
+
+**Build using Discovery stack** (see Discovery section):
+- Entry points
+- Important modules
+- Ownership (if known)
+- Hot paths
+- Fragile zones
+- Connected files
+- Key facts (ports, URLs, config locations)
+- Related prior memories (via Mem0 recall)
+
+**Optional structured files** (recommend only if they improve recall):
+- `docs/project_notes/bugs.md` — bug log with solutions
+- `docs/project_notes/decisions.md` — architectural decision records
+- `docs/project_notes/key_facts.md` — project configuration and constants
+
+### Codebase Pattern
+
+**Trigger:** Before implementing in unfamiliar area.
+
+**Purpose:** Follow dominant local patterns before inventing new ones.
+
+**Extract and follow:**
+- Naming conventions
+- File layout
+- Error handling
+- Logging style
+- Validation approach
+- API style
+- Test style
+- State flow
+
+**Confidence on extraction:**
+- Verified: pattern appears 3+ times in codebase
+- Medium: pattern appears 1-2 times
+- Assumed: inferred from single example or thin sample
+
+**Rule:** Follow the dominant local pattern unless there is a strong reason not to.
+
+### Operational Verification
+
+**Trigger:** Cron jobs, webhooks, background tasks, deployments, auth flows, payments, email ingestion, or any “is it working in production?” question.
+
+**Required proof order:**
+- live config or scheduler entry
+- exact handler or code path
+- live runtime evidence
+- live result or response object
+- explanation of zero-work outcomes if nothing was processed
+
+**Rule:**
+- Distinguish `healthy but no qualifying work` from `broken`
+- If zero items were processed, prove whether that was due to empty inputs, filters, auth failure, scheduler failure, or runtime error
+
+### Superpower
+
+**Trigger:** Uncertainty is high, search cost is rising, implementation confidence is incomplete.
+
+**Purpose:** Use full discovery and decision stack before guessing.
+
+**Stack order:**
+1. AXON first (see Discovery)
+2. grep/ripgrep (see Discovery)
+3. Targeted reads (see Discovery)
+4. Subagents if search space unclear (see Subagents)
+5. Mem0 recall if similar work may exist (see Memory)
+6. /multifix if implementation confidence incomplete (see /multifix Workflow)
+7. Validate before claiming done (see Validation)
+
+**Advisory board mode** (when uncertainty remains high):
+- Factual reviewer: what do we actually know vs assume?
+- Senior engineer: what would an experienced dev do here?
+- Security reviewer: what could go wrong?
+- Consistency reviewer: does this match the rest of the codebase?
+
+**Execution discipline:**
+- Parallelize independent searches
+- Serialize dependent operations
+
+### Proactive Triggers
+
+When a skill trigger clearly matches, invoke it without waiting to be explicitly asked.
 
 ## /multifix Workflow
 
