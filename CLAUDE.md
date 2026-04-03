@@ -116,11 +116,426 @@ OPENROUTER_API_KEY   # Fallback only (Qwen, Llama, GPT-4o)
 
 Configured in `~/.mcp.json`:
 
+- `orchestrator` - Multi-model routing, fallback, consensus, cost tracking
 - `minimax` - MiniMax via Doppler injection
 - `openrouter` - Fallback for models without direct API
 - `mem0` - Persistent memory (patterns, fixes, context)
+- `supabase` - Database management, migrations, edge functions, branches
+- `posthog` - Analytics, experiments, feature flags, error tracking, LLM analytics
 
 Launch pattern: `doppler run --project personal --config dev -- node /path/to/server.js`
+
+## Orchestrator
+
+The `orchestrator-mcp` server provides intelligent multi-model routing, fallback chains, consensus building, and cost tracking.
+
+### Tools
+
+| Tool | Description |
+|------|-------------|
+| `mcp__orchestrator__orchestrate` | Auto-route task to best model with fallback |
+| `mcp__orchestrator__consensus` | Query multiple models, detect disagreement, vote |
+| `mcp__orchestrator__vote` | Quick yes/no vote across models |
+| `mcp__orchestrator__cost_report` | Get usage and cost summary |
+| `mcp__orchestrator__route_explain` | Explain routing decision without executing |
+| `mcp__orchestrator__model_info` | List models, costs, chains, families |
+| `mcp__orchestrator__call_model` | Direct call to specific model |
+| `mcp__orchestrator__get_prompt` | Get dual-prompt template (mechanics vs principles) |
+| `mcp__orchestrator__mem0_recall` | Search Mem0 for relevant context |
+| `mcp__orchestrator__mem0_store` | Store fix pattern to Mem0 |
+| `mcp__orchestrator__multifix_analyze` | Full workflow: Mem0 → Axon → Consensus → Cost |
+| `mcp__orchestrator__axon_query` | Search Axon knowledge graph |
+| `mcp__orchestrator__axon_context` | Get 360° context for a symbol |
+| `mcp__orchestrator__axon_impact` | Get blast radius for a symbol |
+| `mcp__orchestrator__axon_dead_code` | Find dead/unused code |
+| `mcp__orchestrator__squirrel_audit` | Audit website (SEO, perf, security, a11y) |
+| `mcp__orchestrator__posthog_guide` | Get PostHog MCP usage guidance |
+| `mcp__orchestrator__tool_status` | Check all integrated tool availability |
+
+### Usage Patterns
+
+**Auto-route with fallback:**
+```
+mcp__orchestrator__orchestrate task="review this code for bugs" content="<code>"
+```
+
+**Build consensus:**
+```
+mcp__orchestrator__consensus prompt="Is this implementation safe?" models=["minimax", "deepseek", "gpt4o"]
+```
+
+**Check costs:**
+```
+mcp__orchestrator__cost_report format="text"
+```
+
+**Mem0-enhanced consensus:**
+```
+mcp__orchestrator__consensus prompt="Analyze bug" use_memory=true models=["minimax", "deepseek"]
+```
+
+**Full multifix workflow:**
+```
+mcp__orchestrator__multifix_analyze bug_description="race condition in checkout" code_context="<code>"
+```
+
+**Store fix pattern:**
+```
+mcp__orchestrator__mem0_store content="Race condition fix" bug_type="race-condition" root_cause="missing lock"
+```
+
+**Axon code intelligence:**
+```
+mcp__orchestrator__axon_query query="handleCheckout"
+mcp__orchestrator__axon_context symbol="processPayment"
+mcp__orchestrator__axon_impact symbol="validateOrder"
+```
+
+**Website audit:**
+```
+mcp__orchestrator__squirrel_audit url="https://example.com" coverage="surface"
+```
+
+**Check tool status:**
+```
+mcp__orchestrator__tool_status
+```
+
+### What Orchestrator Handles
+
+- **Task classification** - Detects task type (code-review, debug, edge-cases, etc.)
+- **Model selection** - Picks optimal model based on task type and family
+- **Fallback chains** - Automatic retry through model chain on failure
+- **Dual-prompt** - Mechanics prompts for Claude-like, principles for GPT-like
+- **Consensus** - Parallel query, disagreement detection, voting
+- **Cost tracking** - Per-model usage and spending
+- **Mem0 integration** - Recall past fixes, store new patterns
+- **Axon integration** - Code intelligence, symbol context, impact analysis
+- **Squirrel integration** - Website auditing (SEO, performance, security, a11y)
+- **PostHog guidance** - Help with analytics, experiments, feature flags
+
+### When to Use Orchestrator
+
+Use `mcp__orchestrator__*` when:
+- Task benefits from multiple model perspectives
+- You want automatic fallback on API failures
+- You need consensus or voting on important decisions
+- You want cost tracking across models
+- You want the right prompt style selected automatically
+
+Use direct MCP calls (`mcp__minimax__*`, `mcp__openrouter__*`) when:
+- You need specific model behavior
+- You want full control over the prompt
+- Latency matters (orchestrator adds overhead)
+
+## Supabase MCP
+
+Full database management, migrations, edge functions, and development branches.
+
+### Core Tools
+
+| Tool | Description |
+|------|-------------|
+| `mcp__supabase__list_projects` | List all Supabase projects |
+| `mcp__supabase__get_project` | Get project details by ID |
+| `mcp__supabase__list_tables` | List tables in a project |
+| `mcp__supabase__execute_sql` | Run SQL queries directly |
+| `mcp__supabase__apply_migration` | Apply database migrations |
+| `mcp__supabase__list_migrations` | List existing migrations |
+| `mcp__supabase__get_logs` | View project logs |
+| `mcp__supabase__search_docs` | Search Supabase documentation (GraphQL) |
+
+### Security & Performance
+
+| Tool | Description |
+|------|-------------|
+| `mcp__supabase__get_advisors` | Get security or performance advisories |
+| `mcp__supabase__list_extensions` | List installed Postgres extensions |
+
+### Edge Functions
+
+| Tool | Description |
+|------|-------------|
+| `mcp__supabase__list_edge_functions` | List deployed edge functions |
+| `mcp__supabase__get_edge_function` | Get edge function details |
+| `mcp__supabase__deploy_edge_function` | Deploy an edge function |
+
+### Development Branches
+
+| Tool | Description |
+|------|-------------|
+| `mcp__supabase__create_branch` | Create dev branch (applies all migrations) |
+| `mcp__supabase__list_branches` | List existing branches |
+| `mcp__supabase__delete_branch` | Delete a branch |
+| `mcp__supabase__merge_branch` | Merge branch to main |
+| `mcp__supabase__reset_branch` | Reset branch to main state |
+| `mcp__supabase__rebase_branch` | Rebase branch on main |
+
+### Project Management
+
+| Tool | Description |
+|------|-------------|
+| `mcp__supabase__list_organizations` | List organizations |
+| `mcp__supabase__get_organization` | Get organization details |
+| `mcp__supabase__create_project` | Create new project (requires cost confirmation) |
+| `mcp__supabase__pause_project` | Pause a project |
+| `mcp__supabase__restore_project` | Restore paused project |
+| `mcp__supabase__get_project_url` | Get project URL |
+| `mcp__supabase__get_publishable_keys` | Get anon/service keys |
+| `mcp__supabase__generate_typescript_types` | Generate TypeScript types from schema |
+
+### Usage Patterns
+
+**Check for security issues after DDL changes:**
+```
+mcp__supabase__get_advisors project_id="xxx" type="security"
+```
+
+**Run a migration:**
+```
+mcp__supabase__apply_migration project_id="xxx" name="add_users_index" query="CREATE INDEX..."
+```
+
+**Execute ad-hoc SQL:**
+```
+mcp__supabase__execute_sql project_id="xxx" query="SELECT * FROM users LIMIT 10"
+```
+
+**Search docs:**
+```
+mcp__supabase__search_docs graphql_query="{ searchDocs(query: \"RLS policies\", limit: 5) { nodes { title href content } } }"
+```
+
+### When to Use
+
+- **After DDL changes**: Run `get_advisors` to catch missing RLS policies
+- **Before production deploys**: Check security and performance advisories
+- **Development workflow**: Use branches to test migrations safely
+- **Debugging**: Use `get_logs` and `execute_sql` for investigation
+
+## PostHog MCP
+
+Complete analytics platform: events, experiments, feature flags, error tracking, LLM analytics, surveys.
+
+### Feature Flags
+
+| Tool | Description |
+|------|-------------|
+| `mcp__posthog__feature-flag-get-all` | List all feature flags |
+| `mcp__posthog__feature-flag-get-definition` | Get flag definition |
+| `mcp__posthog__create-feature-flag` | Create new flag |
+| `mcp__posthog__update-feature-flag` | Update flag |
+| `mcp__posthog__delete-feature-flag` | Delete flag |
+| `mcp__posthog__feature-flags-status-retrieve` | Get flag status |
+| `mcp__posthog__feature-flags-user-blast-radius-create` | Calculate rollout impact |
+| `mcp__posthog__feature-flags-copy-flags-create` | Copy flags between projects |
+
+### Experiments (A/B Testing)
+
+| Tool | Description |
+|------|-------------|
+| `mcp__posthog__experiment-get-all` | List experiments |
+| `mcp__posthog__experiment-get` | Get experiment details |
+| `mcp__posthog__experiment-create` | Create experiment |
+| `mcp__posthog__experiment-update` | Update experiment |
+| `mcp__posthog__experiment-delete` | Delete experiment |
+| `mcp__posthog__experiment-results-get` | Get experiment results |
+
+### Insights & Queries
+
+| Tool | Description |
+|------|-------------|
+| `mcp__posthog__insights-get-all` | List all insights |
+| `mcp__posthog__insight-get` | Get insight details |
+| `mcp__posthog__insight-create-from-query` | Create insight from query |
+| `mcp__posthog__insight-query` | Query an insight |
+| `mcp__posthog__query-run` | Run arbitrary HogQL query |
+| `mcp__posthog__query-generate-hogql-from-question` | Generate HogQL from natural language |
+| `mcp__posthog__query-trends` | Run trends query |
+| `mcp__posthog__query-funnel` | Run funnel query |
+| `mcp__posthog__query-retention` | Run retention query |
+| `mcp__posthog__query-paths` | Run paths query |
+| `mcp__posthog__query-lifecycle` | Run lifecycle query |
+
+### Error Tracking
+
+| Tool | Description |
+|------|-------------|
+| `mcp__posthog__error-tracking-issues-list` | List error issues |
+| `mcp__posthog__error-tracking-issues-retrieve` | Get error details |
+| `mcp__posthog__error-tracking-issues-partial-update` | Update error status |
+| `mcp__posthog__query-error-tracking-issues` | Query errors |
+
+### LLM Analytics
+
+| Tool | Description |
+|------|-------------|
+| `mcp__posthog__query-llm-traces-list` | List LLM traces |
+| `mcp__posthog__llm-analytics-sentiment-create` | Analyze trace sentiment |
+| `mcp__posthog__llm-analytics-summarization-create` | Summarize trace/generation |
+| `mcp__posthog__llm-analytics-clustering-jobs-list` | List clustering jobs |
+| `mcp__posthog__get-llm-total-costs-for-project` | Get LLM costs |
+
+### Surveys
+
+| Tool | Description |
+|------|-------------|
+| `mcp__posthog__surveys-get-all` | List surveys |
+| `mcp__posthog__survey-get` | Get survey details |
+| `mcp__posthog__survey-create` | Create survey |
+| `mcp__posthog__survey-update` | Update survey |
+| `mcp__posthog__survey-delete` | Delete survey |
+| `mcp__posthog__survey-stats` | Get survey responses |
+| `mcp__posthog__surveys-global-stats` | Get global survey stats |
+
+### Cohorts & Persons
+
+| Tool | Description |
+|------|-------------|
+| `mcp__posthog__cohorts-list` | List cohorts |
+| `mcp__posthog__cohorts-create` | Create cohort |
+| `mcp__posthog__cohorts-add-persons-to-static-cohort-partial-update` | Add persons to cohort |
+| `mcp__posthog__persons-list` | List persons |
+| `mcp__posthog__persons-retrieve` | Get person details |
+| `mcp__posthog__persons-property-set` | Set person property |
+| `mcp__posthog__persons-property-delete` | Delete person property |
+
+### Dashboards
+
+| Tool | Description |
+|------|-------------|
+| `mcp__posthog__dashboards-get-all` | List dashboards |
+| `mcp__posthog__dashboard-get` | Get dashboard |
+| `mcp__posthog__dashboard-create` | Create dashboard |
+| `mcp__posthog__dashboard-update` | Update dashboard |
+| `mcp__posthog__dashboard-reorder-tiles` | Reorder tiles |
+
+### Events & Actions
+
+| Tool | Description |
+|------|-------------|
+| `mcp__posthog__event-definitions-list` | List event definitions |
+| `mcp__posthog__event-definition-update` | Update event definition |
+| `mcp__posthog__properties-list` | List properties |
+| `mcp__posthog__actions-get-all` | List actions |
+| `mcp__posthog__action-create` | Create action |
+| `mcp__posthog__action-get` | Get action |
+
+### Logs & Debugging
+
+| Tool | Description |
+|------|-------------|
+| `mcp__posthog__logs-query` | Query logs |
+| `mcp__posthog__logs-list-attributes` | List log attributes |
+| `mcp__posthog__logs-list-attribute-values` | Get attribute values |
+
+### Project Management
+
+| Tool | Description |
+|------|-------------|
+| `mcp__posthog__organizations-get` | List organizations |
+| `mcp__posthog__switch-organization` | Switch organization |
+| `mcp__posthog__projects-get` | List projects |
+| `mcp__posthog__switch-project` | Switch project |
+| `mcp__posthog__docs-search` | Search PostHog docs |
+
+### PostHog Resources (Framework Integrations)
+
+PostHog provides 80+ framework-specific integration guides accessible as MCP resources:
+
+**Error Tracking:** React, Next.js, Node.js, Python, Ruby, Go, Angular, Svelte, Nuxt, React Native, Flutter, Android, Hono
+
+**Feature Flags:** React, Next.js, React Native, Web, Node.js, Python, PHP, Ruby, Go, Java, Rust, .NET, Elixir, Android, iOS, Flutter, API
+
+**Integrations:** Next.js (App/Pages Router), React Router v6/v7, Nuxt 3/4, Vue 3, Django, Flask, FastAPI, TanStack Router/Start, Laravel, Rails, SvelteKit, Astro, Angular, Expo
+
+**LLM Analytics:** All providers setup guide
+
+**Logs:** Next.js, Node.js, Python, Go, Java, Datadog
+
+### Usage Patterns
+
+**Create a feature flag:**
+```
+mcp__posthog__create-feature-flag key="new-checkout" name="New Checkout Flow" filters={...}
+```
+
+**Run A/B test:**
+```
+mcp__posthog__experiment-create name="Checkout Button Test" feature_flag_key="checkout-button-variant"
+```
+
+**Query with HogQL:**
+```
+mcp__posthog__query-run query="SELECT event, count() FROM events WHERE timestamp > now() - interval 7 day GROUP BY event ORDER BY count() DESC"
+```
+
+**Natural language to HogQL:**
+```
+mcp__posthog__query-generate-hogql-from-question question="How many users signed up last week?"
+```
+
+**Get LLM costs:**
+```
+mcp__posthog__get-llm-total-costs-for-project
+```
+
+### When to Use
+
+- **Feature rollouts**: Create flags, calculate blast radius, staged rollout
+- **A/B testing**: Create experiments, monitor results
+- **Debugging**: Query events, check error tracking, view logs
+- **LLM observability**: Track traces, sentiment, costs, clustering
+- **User research**: Create surveys, analyze responses
+- **Analytics**: Build dashboards, run queries, create cohorts
+
+## Skills (Slash Commands)
+
+User-invocable skills for common workflows. Invoke via `/skill-name` or the Skill tool.
+
+| Skill | Trigger | Description |
+|-------|---------|-------------|
+| `/audit-website` | Website review, SEO check, performance audit | Audit websites for SEO, performance, security, accessibility with 230+ rules via Squirrel |
+| `/codex` | Codex CLI, patch generation | Run OpenAI Codex for code analysis, refactoring, automated editing |
+| `/multi-llm-review` | Code review with multiple models | Multi-model code review using OpenRouter and AXON knowledge graph |
+| `/multifix` | Bug fixing, multi-file changes | Multi-model bug fixing, patch generation, validation (see /multifix Workflow section) |
+| `/react-best-practices` | React/Next.js optimization | Vercel Engineering React/Next.js performance guidelines |
+| `/vercel-deploy-claimable` | Deploy to Vercel | Deploy apps to Vercel without auth, returns preview URL |
+| `/web-design-guidelines` | UI review, accessibility audit | Review UI code for Web Interface Guidelines compliance |
+
+### Skill Usage
+
+**Audit a website:**
+```
+/audit-website https://example.com
+```
+
+**Multi-model code review:**
+```
+/multi-llm-review src/checkout.ts
+```
+
+**Deploy to Vercel:**
+```
+/vercel-deploy-claimable
+```
+
+**Fix a bug with full stack:**
+```
+/multifix "race condition in payment processing"
+```
+
+### When to Use Skills
+
+| Scenario | Skill |
+|----------|-------|
+| Website health check | `/audit-website` |
+| Complex bug with multiple possible causes | `/multifix` |
+| Code review with diverse perspectives | `/multi-llm-review` |
+| React/Next.js performance work | `/react-best-practices` |
+| Quick deploy for preview | `/vercel-deploy-claimable` |
+| UI/UX review | `/web-design-guidelines` |
+| Code generation with Codex | `/codex` |
 
 ## Workflow Contract
 
@@ -136,14 +551,18 @@ Launch pattern: `doppler run --project personal --config dev -- node /path/to/se
 
 For all non-trivial engineering tasks, return:
 
-1. **Claude Diagnosis**
-2. **Secondary Model Findings** (MiniMax/DeepSeek/Gemini)
-3. **Confirmed Issues**
-4. **Rejected Findings**
-5. **Codex Patch** (if applicable)
-6. **Why This Fix Works**
-7. **Risks Introduced**
-8. **Verification Steps**
+1. **Diagnosis** (Claude's analysis)
+2. **Competing Explanations** (alternative theories considered)
+3. **Secondary Model Findings** (MiniMax/DeepSeek/Gemini challenges)
+4. **Confirmed Issues** (validated problems)
+5. **Rejected Findings** (false positives filtered out)
+6. **Change Made** / Codex Patch (if applicable)
+7. **Why This Fix Works**
+8. **Risks Introduced**
+9. **Verification Performed**
+10. **Remaining Uncertainty**
+
+(This is the canonical schema - see Agent Execution Protocol for behavioral rules.)
 
 ### Evidence Standard
 
@@ -342,15 +761,8 @@ Operating constraints for this agent. Separated by enforcement layer.
 - For production or operational checks, include the exact proof object when available
 
 **Review schema (default for non-trivial work):**
-- Diagnosis
-- Competing explanations
-- Confirmed findings
-- Rejected findings
-- Change made
-- Why it works
-- Risks introduced
-- Verification performed
-- Remaining uncertainty
+- Use the Output Schema from Workflow Contract (10-point schema)
+- Required for: non-trivial changes, production code, multi-file edits
 
 ### What I Cannot Control (runtime behaviors)
 
@@ -542,9 +954,9 @@ optio multifix run "fix bug" -f src/file.py --local-only
 /multifix "fix bug"
 ```
 
-### Mem0 Functions
-- `mcp__mem0__search-memories` - Recall past fixes
-- `mcp__mem0__add-memory` - Store new patterns
+### Mem0 Access
+- Via Orchestrator: `mcp__orchestrator__mem0_recall`, `mcp__orchestrator__mem0_store` (preferred)
+- Direct: `mcp__mem0__search-memories`, `mcp__mem0__add-memory`
 
 ## Handoff Instructions
 
