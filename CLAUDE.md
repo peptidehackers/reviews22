@@ -549,20 +549,16 @@ User-invocable skills for common workflows. Invoke via `/skill-name` or the Skil
 
 ### Output Schema
 
-For all non-trivial engineering tasks, return:
+For multi-model engineering tasks, return:
 
-1. **Diagnosis** (Claude's analysis)
-2. **Competing Explanations** (alternative theories considered)
-3. **Secondary Model Findings** (MiniMax/DeepSeek/Gemini challenges)
-4. **Confirmed Issues** (validated problems)
-5. **Rejected Findings** (false positives filtered out)
-6. **Change Made** / Codex Patch (if applicable)
-7. **Why This Fix Works**
-8. **Risks Introduced**
-9. **Verification Performed**
-10. **Remaining Uncertainty**
-
-(This is the canonical schema - see Agent Execution Protocol for behavioral rules.)
+1. **Claude Diagnosis** (primary analysis)
+2. **Secondary Model Findings** (MiniMax/DeepSeek/Gemini challenges)
+3. **Confirmed Issues** (validated across models)
+4. **Rejected Findings** (false positives filtered out)
+5. **Codex Patch** (if applicable)
+6. **Why This Fix Works**
+7. **Risks Introduced**
+8. **Verification Steps**
 
 ### Evidence Standard
 
@@ -761,8 +757,15 @@ Operating constraints for this agent. Separated by enforcement layer.
 - For production or operational checks, include the exact proof object when available
 
 **Review schema (default for non-trivial work):**
-- Use the Output Schema from Workflow Contract (10-point schema)
-- Required for: non-trivial changes, production code, multi-file edits
+- Diagnosis
+- Competing explanations
+- Confirmed findings
+- Rejected findings
+- Change made
+- Why it works
+- Risks introduced
+- Verification performed
+- Remaining uncertainty
 
 ### What I Cannot Control (runtime behaviors)
 
