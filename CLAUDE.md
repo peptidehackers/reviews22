@@ -537,6 +537,52 @@ User-invocable skills for common workflows. Invoke via `/skill-name` or the Skil
 | UI/UX review | `/web-design-guidelines` |
 | Code generation with Codex | `/codex` |
 
+### Skill-Embedded MCP Pattern
+
+Skills can bring their own MCP servers. Spin up on-demand, scoped to task, gone when done. Prevents context bloat.
+
+**Pattern:**
+```yaml
+# In SKILL.md frontmatter
+---
+name: my-skill
+mcp:
+  my-mcp:
+    command: npx
+    args: ["-y", "my-mcp-server"]
+---
+```
+
+**Benefits:**
+- MCP context isolated to skill execution
+- No global context bloat
+- Automatic cleanup on skill completion
+- Composable: skill + MCP as unit
+
+### Custom Skill Creation
+
+Location priority (highest first):
+1. `.claude/skills/*/SKILL.md` (project)
+2. `~/.claude/skills/*/SKILL.md` (user)
+3. `.omc/skills/*/SKILL.md` (project, omc convention)
+4. `~/.omc/skills/*/SKILL.md` (user, omc convention)
+
+**SKILL.md format:**
+```markdown
+---
+name: skill-name
+description: What this skill does
+mcp:  # Optional embedded MCPs
+  mcp-name:
+    command: npx
+    args: ["-y", "mcp-server"]
+---
+
+# Skill Instructions
+
+[System prompt content injected when skill active]
+```
+
 ## Workflow Contract
 
 ### For Engineering Tasks
@@ -778,6 +824,21 @@ These are handled by Claude Code's runtime, not by me:
 
 I can work with these behaviors but cannot override them.
 
+### Intent Gate (before action)
+
+Analyze true user intent before classifying or acting. No literal misinterpretations.
+
+**Process:**
+1. What did the user literally say?
+2. What do they actually want?
+3. What context informs their intent?
+4. What would a senior engineer infer?
+
+**Example:**
+- User says: "fix the tests"
+- Literal: make tests pass
+- Intent: fix the underlying bug causing test failures (not skip tests)
+
 ### Prohibitions (non-negotiable self-rules)
 
 | If I detect this | I must stop and correct |
@@ -794,6 +855,30 @@ I can work with these behaviors but cannot override them.
 | Using expensive models (Opus/GPT-4o) for utility tasks (search, grep, retrieval) | Use speed-tier models instead |
 | Applying Claude-style mechanics prompts to GPT models | Use principle-driven prompts for GPT |
 | Creating plans that leave decisions to the implementer | Apply Decision Complete principle |
+| ToolSearch on bloated schema tool (PostHog query-*) | Task agent or direct call |
+| Extracting skills that fail quality gates | Skip extraction |
+| Acting on literal interpretation when intent differs | Apply Intent Gate first |
+| Going idle with pending todos | Re-engage via Todo Enforcer |
+| Generating AI slop comments | Apply Comment Checker |
+
+### Session Recovery Patterns
+
+Automatic recovery from common session failures:
+
+| Failure | Recovery |
+|---------|----------|
+| Context window exceeded | Graceful compaction, preserve critical context |
+| Edit failed (stale content) | Re-read file, shrink scope, retry |
+| API error | Try next model in fallback chain |
+| Thinking block violation | Reconstruct valid message history |
+| JSON parse error | Recover from malformed output |
+| Tool timeout | Retry with smaller scope |
+| Empty response | Rephrase and retry once |
+
+**Recovery discipline:**
+- On first failure: shrink scope, retry
+- On second failure: change approach entirely
+- On third failure: ask user for guidance
 
 ---
 
@@ -960,6 +1045,433 @@ optio multifix run "fix bug" -f src/file.py --local-only
 ### Mem0 Access
 - Via Orchestrator: `mcp__orchestrator__mem0_recall`, `mcp__orchestrator__mem0_store` (preferred)
 - Direct: `mcp__mem0__search-memories`, `mcp__mem0__add-memory`
+
+## Token Optimization
+
+### Core Rule
+
+**Match resources to task complexity.**
+
+| Task | Resources |
+|------|-----------|
+| Simple | Minimal tokens, one call, haiku |
+| Complex | Multiple models, deep analysis, consensus |
+
+Don't over-engineer simple tasks. Don't under-resource complex ones.
+
+### Bloated Schema Isolation
+
+MCP tools only available to Claude agents. For bloated schemas:
+
+**Fresh session:** Task agent (haiku) - schema isolated in subagent
+```
+Task agent (haiku): "Get PostHog pageviews last 7 days"
+→ Agent loads schema, queries, returns summary, dies
+```
+
+**Large context session:** Direct call acceptable (can't spawn agent)
+
+### Dedicated LLM Routing (non-MCP tasks)
+
+Route analysis tasks to specialized LLMs:
+
+| Task Type | LLM | Why |
+|-----------|-----|-----|
+| Long file analysis | Moonshot | 128K context |
+| Edge case hunting | MiniMax | Aggressive scanner |
+| Code review | Gemini | Alternative perspective |
+| Deep reasoning | DeepSeek | Chain-of-thought |
+
+### Model Routing
+
+| Task Complexity | Model |
+|-----------------|-------|
+| Simple (fetch, search, grep) | Haiku |
+| Medium (analysis, multi-step) | Sonnet |
+| Complex (architecture, planning) | Opus |
+
+---
+
+## Learnable Skills System
+
+Extract reusable problem-solving patterns into portable skill files. Based on oh-my-claudecode's learner system.
+
+### Directory Structure
+
+```
+.omc/
+├── skills/           # Project-scoped (version controlled)
+├── artifacts/        # Session outputs
+├── state/            # Execution state
+└── sessions/         # Session summaries
+
+~/.omc/
+└── skills/           # User-scoped (global fallback)
+```
+
+### Skill Quality Gates
+
+Only extract skills that meet ALL criteria:
+
+| Gate | Description |
+|------|-------------|
+| **Non-Googleable** | Can't easily find via search |
+| **Context-specific** | Tied to actual codebases with file paths/errors |
+| **Hard-won** | Required significant debugging effort |
+| **Actionable with precision** | Tells exactly what and where |
+
+**Reject:** Generic patterns, basic library usage, refactoring techniques, anything in official docs.
+
+### Skill Format
+
+```markdown
+# Skill: [name]
+
+## Principle
+[The underlying insight, not code to copy-paste]
+
+## Recognition Signals
+- [When to apply this skill]
+- [Specific error patterns or symptoms]
+
+## Decision Approach
+1. [Step-by-step thinking]
+2. [What to check first]
+3. [How to verify]
+
+## Example Context
+- File: [actual path where this applied]
+- Error: [actual error message]
+- Solution: [what worked]
+```
+
+### Skill Extraction Workflow
+
+**Trigger:** After successful debugging that required significant effort.
+
+**Process:**
+1. Gather: problem statement, exact solution, recognition triggers
+2. Validate: passes all quality gates
+3. Classify: expertise (domain knowledge) vs workflow (procedures)
+4. Save: project-level by default (`/Users/apps/.omc/skills/`)
+
+### Auto-Injection
+
+When starting work in a codebase:
+1. Check `.omc/skills/` for project skills
+2. Check `~/.omc/skills/` for user skills
+3. Load relevant skills based on task keywords
+
+---
+
+## Magic Keywords
+
+Trigger workflows automatically without explicit commands.
+
+| Keyword | Action |
+|---------|--------|
+| `ultrawork` / `ulw` | Full autonomous execution - all agents until task complete |
+| `autopilot:` | Full autonomous execution |
+| `ralph:` | Persistent mode with verify/fix loops (self-referential until 100% done) |
+| `deepsearch` | Codebase-focused search routing |
+| `ultrathink` | Deep reasoning mode with extended thinking |
+| `deslop` / `cleanup` | Regression-safe refactoring |
+| `interview:` | Prometheus-style planning with iterative questioning |
+
+### Team Pipeline (Default for Multi-Step Tasks)
+
+```
+plan → execute → verify → fix (loop) → complete
+```
+
+**Verification gate before completion:**
+- Zero pending tasks
+- Working features
+- Passing tests (if applicable)
+- Zero errors
+- Collected evidence
+
+---
+
+## Discipline Agent Roles
+
+Named agent roles for specialized work. Match role to task, not model.
+
+| Role | Responsibility | Model Tier | Restrictions |
+|------|----------------|------------|--------------|
+| **Orchestrator** | Plans, delegates, drives to completion | Opus/DeepSeek | Full access |
+| **Deep Worker** | Autonomous goal-oriented execution | GPT/DeepSeek | Full access |
+| **Planner** | Interview-mode strategic planning | Opus/GPT | Read + plan only |
+| **Consultant** | Architecture review, debugging | GPT/Gemini | Read-only |
+| **Librarian** | Documentation, code search | MiniMax/Haiku | Read-only |
+| **Explorer** | Fast codebase grep | MiniMax/Flash | Read-only |
+| **Executor** | Todo-driven task execution | Sonnet/GPT | No delegation |
+| **Reviewer** | Plan validation, quality gates | GPT/Opus | Read-only |
+
+### Tool Restrictions by Role
+
+| Role | Blocked Tools | Rationale |
+|------|---------------|-----------|
+| Consultant | write, edit, task | Read-only analysis |
+| Librarian | write, edit, task | Search and retrieve only |
+| Explorer | write, edit, task | Fast search only |
+| Executor | task (no re-delegation) | Prevents infinite loops |
+| Reviewer | write, edit | Validation only |
+
+### Role Selection
+
+```
+If task is "plan X" → Planner role
+If task is "find X" or "search X" → Explorer role
+If task is "review X" or "analyze X" → Consultant role
+If task is "implement X" (clear scope) → Executor role
+If task is "fix X" (unclear scope) → Deep Worker role
+If task is complex multi-step → Orchestrator role
+```
+
+---
+
+## Category-Based Task Routing
+
+Categories auto-select optimal models based on task type. Use category, not model name, when delegating.
+
+| Category | Default Model | Use Cases |
+|----------|---------------|-----------|
+| `visual-engineering` | Gemini | Frontend, UI/UX, design, animation |
+| `deep` | GPT/DeepSeek | Autonomous research + execution |
+| `quick` | MiniMax/Haiku | Single-file changes, typos |
+| `ultrabrain` | GPT (high)/Opus | Complex logic, architecture |
+| `artistry` | Gemini | Creative, unconventional approaches |
+| `writing` | Gemini Flash | Documentation, prose |
+| `unspecified-low` | Sonnet | General tasks, low effort |
+| `unspecified-high` | Opus | General tasks, high effort |
+
+### Category + Skill Combinations
+
+| Combo | Category | Skills | Result |
+|-------|----------|--------|--------|
+| **UI Builder** | visual-engineering | frontend-ui-ux, playwright | Aesthetic UI + browser verification |
+| **Bug Hunter** | deep | multifix | Autonomous debugging |
+| **Doc Writer** | writing | - | Fast documentation |
+| **Architect** | ultrabrain | - | Deep design decisions |
+
+---
+
+## Lifecycle Hooks
+
+Self-enforced behavioral hooks for quality and completion.
+
+### Completion Enforcement
+
+| Hook | Trigger | Action |
+|------|---------|--------|
+| **Todo Enforcer** | Agent goes idle with pending todos | Re-engage and continue |
+| **Ralph Loop** | Task marked complete | Self-verify, fix if needed, repeat until 100% |
+| **Completion Gate** | Before claiming "done" | Check: zero pending, tests pass, verified |
+
+### Quality Guards
+
+| Hook | Trigger | Action |
+|------|---------|--------|
+| **Comment Checker** | Code generation | No AI slop patterns in comments |
+| **Edit Validator** | After Edit | Re-read to confirm change applied |
+| **Pattern Matcher** | Before implementation | Follow dominant local patterns |
+
+### Recovery Hooks
+
+| Hook | Trigger | Action |
+|------|---------|--------|
+| **Session Recovery** | Context window limit | Graceful compaction, continue |
+| **Edit Recovery** | Failed edit | Shrink scope, retry once |
+| **Fallback Chain** | API error | Try next model in chain |
+
+### AI Slop Patterns to Avoid
+
+Never generate code comments like:
+- "This is a placeholder"
+- "TODO: implement later"
+- "AI-generated"
+- Excessive obvious comments
+- Comments that restate the code
+
+---
+
+## Hierarchical Context Files
+
+Use nested AGENTS.md (or similar) files to scope context by directory.
+
+### Structure
+
+```
+project/
+├── AGENTS.md              ← project-wide context
+├── src/
+│   ├── AGENTS.md          ← src-specific patterns
+│   └── components/
+│       └── AGENTS.md      ← component-specific rules
+```
+
+### Auto-Loading Rules
+
+When working in a directory:
+1. Load project-level context
+2. Load directory-level context (overrides project)
+3. Load component-level context (overrides directory)
+
+### Context File Format
+
+```markdown
+# AGENTS.md
+
+## Patterns
+- [local conventions]
+
+## Hot Paths
+- [frequently modified files]
+
+## Fragile Zones
+- [files that break easily]
+
+## Key Facts
+- [ports, URLs, configs]
+```
+
+---
+
+## Interview-Mode Planning
+
+For complex tasks, use Prometheus-style iterative questioning before execution.
+
+### Trigger
+
+- User says "plan", "design", "architect"
+- Task has multiple valid approaches
+- Requirements are ambiguous
+
+### Process
+
+1. **Gather** - Ask clarifying questions
+2. **Identify** - Surface hidden intentions and ambiguities
+3. **Propose** - Present options with trade-offs
+4. **Validate** - Confirm understanding before execution
+5. **Plan** - Create detailed execution plan
+6. **Review** - Validate plan against clarity/verifiability
+
+### Questions to Ask
+
+- What is the success criteria?
+- What constraints exist?
+- What trade-offs are acceptable?
+- What's the rollback plan?
+- What dependencies exist?
+
+### Plan Validation (Before Execution)
+
+Two-phase validation inspired by Metis + Momus pattern:
+
+**Phase 1: Pre-Planning Analysis (Metis)**
+- Identify hidden intentions user didn't explicitly state
+- Surface ambiguities that could derail execution
+- Predict AI failure points
+- Flag missing context
+
+**Phase 2: Plan Review (Momus)**
+Validate against standards:
+
+| Criterion | Check |
+|-----------|-------|
+| Clarity | Can another agent execute without questions? |
+| Verifiability | Can success/failure be objectively measured? |
+| Completeness | Are all edge cases addressed? |
+| Atomicity | Can each step be independently verified? |
+| Reversibility | Can we rollback if needed? |
+
+**Plan rejection triggers:**
+- Ambiguous success criteria
+- Missing error handling
+- No verification steps
+- Decisions left to implementer
+
+---
+
+## Parallel Agent Execution
+
+Run multiple agents concurrently for speed.
+
+### When to Parallelize
+
+- Independent searches/reads
+- Multi-file analysis
+- Consensus building across models
+- Background research while implementing
+
+### When to Serialize
+
+- Dependent operations (read → edit → verify)
+- Same file modifications
+- Operations with side effects
+
+### Background Agent Pattern
+
+```
+1. Launch agent in background (run_in_background=true)
+2. Continue main work
+3. Check results when ready
+4. Integrate findings
+```
+
+### Concurrency Limits
+
+| Provider | Max Concurrent |
+|----------|----------------|
+| Expensive (Opus, GPT-4) | 2-3 |
+| Standard (Sonnet, GPT-4o) | 5 |
+| Cheap (Haiku, MiniMax) | 10+ |
+
+### Unstable Agent Monitoring
+
+Some models/tasks are more prone to failure. Mark as unstable for extra monitoring:
+
+**Unstable indicators:**
+- New/experimental models
+- Long-running tasks
+- Tasks with side effects
+- Models with known reliability issues
+
+**Monitoring pattern:**
+- Force background mode for unstable agents
+- Check progress periodically
+- Have fallback ready
+- Log all outputs for debugging
+
+### Multi-Agent Orchestration Examples
+
+**Parallel research:**
+```
+1. Launch Explorer: "find auth implementations"
+2. Launch Librarian: "search docs for auth patterns"
+3. Launch Consultant: "review current auth code"
+4. Continue main work
+5. Synthesize results when ready
+```
+
+**Consensus building:**
+```
+1. Query MiniMax: "find edge cases"
+2. Query DeepSeek: "analyze logic"
+3. Query Gemini: "review approach"
+4. Compare findings
+5. Claude decides final answer
+```
+
+**Deep + Quick combo:**
+```
+1. Quick agent: fix typos and formatting
+2. Deep agent: investigate root cause
+3. Orchestrator: combine fixes
+```
+
+---
 
 ## Handoff Instructions
 
