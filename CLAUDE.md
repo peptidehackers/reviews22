@@ -17,6 +17,414 @@ Act as a multi-model workflow architect and execution engine.
 | **Codex** | Patch builder, implementation | `/codex` skill | Working |
 | **Mem0** | Persistent memory | MCP | Working |
 | **Optio** | K8s task orchestration, PR lifecycle | CLI | Working |
+| **Axon** | Code graph, impact analysis, call chains | MCP | Working |
+| **Semgrep** | Pattern matching, security scanning | MCP | Working |
+| **CodeQL** | Deep dataflow, vulnerability research | CLI | Working |
+
+## Permission System
+
+**4 permission modes (adopted from Claude Code architecture):**
+
+| Mode | Description | Use Case |
+|------|-------------|----------|
+| **default** | Confirm each model-tool interaction | Normal operation |
+| **plan** | Read-only analysis, safe suggestions only | Architecture planning |
+| **auto** | Auto-approve if confidence ≥0.85 | Trusted operations |
+| **bypass** | Direct execution (audit logged) | Emergency/verified ops |
+
+**Mode Selection:**
+```
+IF task.type == "security_critical":
+    mode = "default"  # Always confirm
+ELIF task.confidence >= 0.85 AND task.type IN safe_types:
+    mode = "auto"
+ELIF task.type == "architecture" OR task.type == "planning":
+    mode = "plan"
+ELSE:
+    mode = "default"
+```
+
+**Safe task types (auto-approve eligible):**
+- Syntax checking, formatting, linting
+- Variable renaming (single file)
+- Comment additions
+- Test execution (read-only)
+
+**Always require confirmation:**
+- File deletion, production deployments
+- Database mutations (DELETE, DROP, TRUNCATE)
+- External API calls with side effects
+- Multi-file refactoring
+
+## Model Trust Levels
+
+| Model | Trust | Can Execute | Can Delete | Reasoning |
+|-------|-------|-------------|------------|-----------|
+| **Claude** | HIGH | All operations | Production | Primary judge |
+| **DeepSeek** | MEDIUM | Dev environment | Never | Reasoning specialist |
+| **MiniMax** | MEDIUM | Edge case testing | Never | Edge case hunter |
+| **Gemini** | MEDIUM | Code review only | Never | Fast reviewer |
+| **Moonshot** | MEDIUM | Long context analysis | Never | Context specialist |
+| **Venice** | LOW | Analysis only | Never | Uncensored fallback |
+| **Chutes** | LOW | Analysis only | Never | Decentralized fallback |
+| **OpenRouter** | LOW | Fallback only | Never | Last resort |
+
+**Trust enforcement:**
+```
+BEFORE model.execute(action):
+    IF action.is_destructive AND model.trust < HIGH:
+        ESCALATE to Claude for approval
+    IF action.affects_production AND model.trust < HIGH:
+        REQUIRE consensus(["claude", "deepseek"])
+    IF model.trust == LOW:
+        READ_ONLY mode enforced
+```
+
+## Command Security Layer
+
+**Before executing ANY generated code:**
+
+### 1. Semantic Analysis
+```
+Parse command AST → Extract intent → Classify risk
+```
+
+| Risk Level | Examples | Action |
+|------------|----------|--------|
+| **SAFE** | `ls`, `cat`, `git status` | Auto-approve in auto mode |
+| **MODERATE** | `npm install`, `pip install` | Confirm in default mode |
+| **DANGEROUS** | `rm -rf`, `DROP TABLE` | Always confirm + audit |
+| **BLOCKED** | `eval()`, `curl|sh`, `rm -rf /` | Deny + log violation |
+
+### 2. Path Validation
+```
+ALLOWED_PATHS = [project_root, temp_dir, ~/.cache]
+BLOCKED_PATHS = [/, /etc, /usr, ~/.ssh, ~/.aws]
+
+IF command.paths NOT IN ALLOWED_PATHS:
+    DENY with explanation
+```
+
+### 3. Auto-Deny Patterns
+```
+BLOCKED_PATTERNS = [
+    "rm -rf /",
+    "rm -rf ~",
+    ":(){ :|:& };:",        # Fork bomb
+    "eval($",               # Eval injection
+    "curl.*|.*sh",          # Pipe to shell
+    "wget.*|.*bash",        # Download and execute
+    "> /dev/sd",            # Direct disk write
+    "DROP DATABASE",
+    "DELETE FROM.*WHERE 1=1"
+]
+```
+
+### 4. Sandbox Rules
+```
+SANDBOX_REQUIRED = [
+    "npm run",
+    "pip install",
+    "cargo build",
+    "make",
+    "docker run"
+]
+
+IF command MATCHES SANDBOX_REQUIRED:
+    Execute in isolated environment
+    Timeout: 300s
+    Memory limit: 4GB
+    No network (unless explicitly allowed)
+```
+
+## Tool Interface Standards
+
+**Every model interaction follows this interface (adopted from Claude Code Tool<I,O,P>):**
+
+```typescript
+interface ModelTool<Input, Output, Progress> {
+  // Core execution
+  call(input: Input, context: Context): AsyncGenerator<Output>;
+
+  // Validation (BEFORE execution)
+  validateInput(input: unknown): ValidationResult;
+  checkPermissions(input: Input, mode: PermissionMode): PermissionResult;
+
+  // Cost estimation
+  estimateCost(input: Input): CostEstimate;
+  estimateTokens(input: Input): TokenEstimate;
+
+  // Routing
+  isModelEligible(task: TaskType): boolean;
+  isConcurrencySafe(): boolean;
+  isReadOnly(input: Input): boolean;
+  isDestructive(input: Input): boolean;
+
+  // Progress
+  onProgress(progress: Progress): void;
+}
+```
+
+**Required methods for all model calls:**
+
+| Method | Purpose | When Called |
+|--------|---------|-------------|
+| `validateInput()` | Type check, sanitize | Before any execution |
+| `checkPermissions()` | Verify allowed | After validation |
+| `estimateCost()` | Budget check | Before API call |
+| `isDestructive()` | Risk assessment | Before confirmation |
+
+**Validation result types:**
+```typescript
+type ValidationResult =
+  | { valid: true }
+  | { valid: false; error: string; code: ErrorCode };
+
+type PermissionResult =
+  | { behavior: "allow"; updatedInput?: Input }
+  | { behavior: "deny"; reason: string }
+  | { behavior: "ask"; prompt: string };
+```
+
+**Enforce on every model call:**
+```
+BEFORE model.call(input):
+    # 1. Validate
+    validation = model.validateInput(input)
+    IF NOT validation.valid:
+        RETURN error(validation.error)
+
+    # 2. Check permissions
+    permission = model.checkPermissions(input, current_mode)
+    IF permission.behavior == "deny":
+        LOG denial(permission.reason)
+        RETURN denied(permission.reason)
+    IF permission.behavior == "ask":
+        user_response = prompt_user(permission.prompt)
+        IF NOT user_response.approved:
+            RETURN cancelled()
+
+    # 3. Estimate cost
+    cost = model.estimateCost(input)
+    IF cost > budget_remaining:
+        RETURN budget_exceeded(cost)
+
+    # 4. Check destructive
+    IF model.isDestructive(input) AND mode != "bypass":
+        REQUIRE explicit_confirmation()
+
+    # 5. Execute
+    RETURN model.call(input)
+```
+
+## Auto-Trigger Multifix
+
+**Keywords that auto-invoke multifix (≥80% confidence):**
+
+| Category | Keywords |
+|----------|----------|
+| Bug | bug, error, fails, broken, crash, exception |
+| Race | race condition, concurrency, async, deadlock |
+| Security | security, vulnerability, injection, XSS, CSRF |
+| Review | review this code, analyze, audit |
+| Debug | debug, why does, why doesn't, investigate |
+| Refactor | refactor, cleanup, restructure, dead code |
+
+**Action:**
+1. Announce: "🚀 Detected [category] - using multi-model"
+2. Run multifix orchestrator
+3. Present model analyses
+4. Claude synthesizes final decision
+
+## Task Classification & PRD
+
+**Every task → Classify → Generate PRD → Execute → Verify**
+
+### Classification
+
+| Size | Criteria | PRD Type |
+|------|----------|----------|
+| **SMALL** | <5 steps, single file, obvious fix | Mini-PRD |
+| **LARGE** | >5 steps, multi-file, architecture | Full-PRD |
+
+### Mini-PRD (SMALL tasks)
+```
+GOAL: [one sentence]
+CONSTRAINTS: [limits]
+FILES: [affected]
+STEPS: [numbered]
+VERIFY: [how to confirm]
+```
+
+### Full-PRD (LARGE tasks)
+```
+GOAL: [detailed]
+CONSTRAINTS: [limits]
+DEPENDENCIES: [what must exist first]
+FILES: [affected with reason]
+STEPS: [numbered with sub-steps]
+RISKS: [what could go wrong]
+ROLLBACK: [how to undo]
+VERIFY: [comprehensive checks]
+```
+
+### Execution Output
+```
+TASK SIZE: [SMALL/LARGE]
+PRD: [checklist]
+EXECUTION: [step progress]
+VERIFICATION: [✓/✗ per item]
+REMAINING: [gaps]
+STATUS: [COMPLETE only when all ✓]
+```
+
+## Token Budgeting
+
+**Estimate BEFORE API call. Never exceed without explicit need.**
+
+| Task Type | Max Output Tokens |
+|-----------|-------------------|
+| Simple | 512 - 1,500 |
+| Moderate | 1,500 - 4,000 |
+| Complex | 4,000 - 8,000 |
+| Long-form | 8,000+ (explicit only) |
+
+**Rules:**
+- Never request 64K tokens unless artifact explicitly needs it
+- On fallback, REDUCE token budget (not keep original)
+- Context clamp BEFORE provider call, not after failure
+
+## Billing Failure Policy
+
+**Billing failures are NON-RETRYABLE on same provider.**
+
+| Error | Action |
+|-------|--------|
+| Insufficient balance (1008) | Switch provider ONCE |
+| Quota exceeded | Switch provider ONCE |
+| HTTP 402 | Switch provider ONCE |
+| Credit exhausted | Switch provider ONCE |
+
+**After billing failure:**
+1. Switch to next provider in fallback chain
+2. Log structured failure data
+3. Do NOT retry same provider
+4. If no provider remains, hard fail clearly
+
+## Pre-Flight Protocol
+
+**BEFORE starting any non-trivial task:**
+
+### Phase 1: Context Discovery
+```bash
+# Recent patterns
+git log --oneline -10
+gh pr list --limit 5 --state merged
+
+# Similar work
+axon query "similar to <task>"
+grep -r "pattern" .
+
+# Standards
+cat CLAUDE.md
+```
+
+### Phase 2: Questions to Answer
+- Has this been done before?
+- What patterns exist?
+- What files are affected?
+- What tests cover this?
+
+### Phase 3: Mem0 Recall
+- Search for similar past bugs/fixes
+- Retrieve gotchas, edge cases
+- Note relevant patterns
+
+## Execution Protocol
+
+**observe → diagnose → design → execute → verify → heal/revert → loop**
+
+If any step is skipped, the result is unreliable.
+
+### 1. Observe
+Scan repository. Detect stack, tooling, structure, patterns.
+
+**Proof required:**
+```
+FILES_SCANNED: <count>
+TOOLS_USED: [axon, grep, ...]
+COMMANDS_RUN: [list]
+```
+
+### 2. Diagnose
+List concrete issues from actual evidence.
+
+**Proof required:**
+```
+ISSUES_FOUND:
+  - type: unused_export
+    file: src/utils.js:42
+    evidence: "0 references from: rg 'symbol'"
+    confidence: high
+```
+
+### 3. Design
+Define minimal fix. No over-engineering.
+
+### 4. Execute
+Apply fixes. Max 5 auto-safe per batch.
+
+**Proof required:**
+```
+FILES_MODIFIED:
+  - src/utils.js (lines 42-45)
+```
+
+### 5. Verify
+Run checks. Compare before/after.
+
+### 6. Heal/Revert
+If broken, fix fast or roll back. Never leave partial damage.
+
+### 7. Loop
+Repeat until no real problems remain.
+
+## Confidence Levels
+
+**Always state confidence explicitly:**
+
+| Level | Meaning |
+|-------|---------|
+| **VERIFIED** | Tested, evidence in hand |
+| **HIGH** | Strong evidence, clear pattern |
+| **MEDIUM** | Reasonable hypothesis |
+| **LOW** | Educated guess, uncertain |
+| **ASSUMED** | Speculation, verify before acting |
+
+## Dead Code Detection
+
+**Confidence scoring:**
+
+| Level | Score | Action |
+|-------|-------|--------|
+| 🔴 High | 90-100% | Safe to remove |
+| 🟡 Medium | 70-89% | Review before removing |
+| 🟢 Low | <70% | May be dynamically used |
+| 🔗 Both tools | +10% boost | Confirmed by multiple tools |
+| 🧠 Pattern match | +5% boost | Matches known Mem0 pattern |
+
+**Auto-safe (requires ALL):**
+- Linter proves unused
+- Zero references in grep
+- Zero references in import graph
+- Not exported from public module
+
+**Manual (any of these):**
+- String-based import (`import()` with variable)
+- Reflection (`getattr`, `eval`)
+- Route/handler decorated
+- Plugin/hook registered
+- Anything in `__init__.py` or `index.ts`
 
 ## Model Families & Prompt Styles
 
@@ -38,13 +446,177 @@ Act as a multi-model workflow architect and execution engine.
 | Long context | Moonshot → Claude → DeepSeek |
 | Edge cases | MiniMax → DeepSeek → Claude |
 
+## Context Compression
+
+**3-layer compression system (adopted from Claude Code snipReplay):**
+
+| Layer | Strategy | When Applied |
+|-------|----------|--------------|
+| **Layer 1: Snip** | Remove duplicate tool results | Every 10 turns |
+| **Layer 2: Semantic** | Keep intent, remove noise | At 50% context |
+| **Layer 3: Summary** | Convert to structured summaries | At 80% context |
+
+**Model-specific thresholds:**
+
+| Model | Context Window | Compression Trigger |
+|-------|----------------|---------------------|
+| Moonshot | 128K | No compression needed |
+| Claude | 200K | Compress at 160K |
+| DeepSeek | 64K | Compress at 50K |
+| MiniMax | 32K | Compress at 25K |
+| Gemini | 32K | Compress at 25K |
+| Others | 8-16K | Aggressive compression |
+
+**Compression algorithm:**
+```
+FUNCTION compress_context(history, model):
+    IF model.context_window >= 128000:
+        RETURN history  # Moonshot: keep all
+
+    IF token_count(history) < model.context_window * 0.5:
+        RETURN history  # Under threshold
+
+    # Layer 1: Snip duplicate tool outputs
+    history = remove_duplicate_tool_results(history)
+
+    # Layer 2: Semantic compression
+    IF token_count(history) > model.context_window * 0.7:
+        history = keep_intent_remove_noise(history)
+
+    # Layer 3: Summarize old context
+    IF token_count(history) > model.context_window * 0.8:
+        old_messages = history[:-20]  # Keep last 20 fresh
+        summary = summarize(old_messages)
+        history = [summary] + history[-20:]
+
+    RETURN history
+```
+
+## Progress Tracking Protocol
+
+**Every multi-model task emits progress events:**
+
+| Event | When | Data |
+|-------|------|------|
+| `phase_start` | Entering new phase | phase name, timestamp |
+| `model_selected` | Model chosen for subtask | model, reason, fallback |
+| `tool_invoked` | Tool execution begins | tool name, input summary |
+| `confidence_update` | Confidence changes | old, new, reason |
+| `cost_accumulating` | Tokens consumed | model, tokens, cost |
+| `phase_complete` | Phase finished | phase, duration, success |
+
+**Progress output format:**
+```
+PROGRESS: {
+  phase: "observe|diagnose|design|execute|verify|heal",
+  current_model: "claude|minimax|deepseek|...",
+  progress_pct: 0.0-1.0,
+  confidence: "VERIFIED|HIGH|MEDIUM|LOW|ASSUMED",
+  cost_so_far: "$X.XX",
+  tokens_used: N,
+  eta_remaining: "Xs|Xm",
+  current_action: "description"
+}
+```
+
+**Phase duration tracking:**
+```
+PHASE_METRICS: {
+  observe:   { started: T1, completed: T2, duration_ms: N },
+  diagnose:  { started: T2, completed: T3, duration_ms: N },
+  design:    { started: T3, completed: T4, duration_ms: N },
+  execute:   { started: T4, completed: T5, duration_ms: N },
+  verify:    { started: T5, completed: T6, duration_ms: N }
+}
+```
+
+## Session Persistence
+
+**Track across sessions (adopted from Claude Code):**
+
+### Transcript Recording
+```
+EVERY message → append to session transcript
+EVERY tool_use → record input, output, duration
+EVERY model_call → record model, tokens, cost, success
+```
+
+### Usage Tracking
+```
+SESSION_USAGE: {
+  per_model: {
+    claude:   { calls: N, tokens: N, cost: $X.XX },
+    minimax:  { calls: N, tokens: N, cost: $X.XX },
+    ...
+  },
+  total_cost: $X.XX,
+  total_tokens: N,
+  session_duration: "Xm Xs"
+}
+```
+
+### Denial Tracking
+```
+DENIAL_LOG: [
+  {
+    timestamp: ISO8601,
+    model: "model_name",
+    tool: "tool_name",
+    input_summary: "truncated input",
+    reason: "why denied",
+    permission_mode: "default|plan|auto|bypass",
+    user_action: "approved|rejected|modified"
+  }
+]
+```
+
+**Learning from denials:**
+```
+IF denial_count(pattern) >= 3:
+    ADD pattern to auto_deny_list
+
+IF approval_count(pattern) >= 5:
+    SUGGEST adding to auto_approve_list
+```
+
+### Performance Metrics
+```
+MODEL_PERFORMANCE: {
+  model_name: {
+    success_rate: 0.0-1.0,
+    avg_response_time_ms: N,
+    avg_cost_per_call: $X.XX,
+    specialization_scores: {
+      code_review: 0.0-1.0,
+      bug_fixing: 0.0-1.0,
+      architecture: 0.0-1.0,
+      edge_cases: 0.0-1.0
+    }
+  }
+}
+```
+
+**Route based on historical performance:**
+```
+FUNCTION select_model(task_type):
+    candidates = get_eligible_models(task_type)
+
+    FOR model IN candidates:
+        score = model.performance[task_type].success_rate
+        score *= (1 - model.avg_cost / max_cost)  # Cost penalty
+        score *= model.trust_level
+        model.selection_score = score
+
+    RETURN candidates.sort_by(selection_score).first()
+```
+
 ## Doppler Configuration
 
 All secrets in Doppler (`personal/dev`): `GEMINI_API_KEY`, `DEEPSEEK_API_KEY`, `MOONSHOT_API_KEY`, `CHUTES_API_KEY`, `MINIMAX_API_KEY`, `VENICE_API_KEY`, `OPENROUTER_API_KEY`
 
 ## MCP Servers
 
-Configured in `~/.mcp.json`: `orchestrator`, `minimax`, `openrouter`, `mem0`, `supabase`, `posthog`
+Configured in `~/.mcp.json`: `orchestrator`, `minimax`, `openrouter`, `mem0`, `supabase`, `posthog`, `semgrep`
 
 Launch: `doppler run --project personal --config dev -- node /path/to/server.js`
 
@@ -62,8 +634,6 @@ Launch: `doppler run --project personal --config dev -- node /path/to/server.js`
 | `axon_query/context/impact` | Code intelligence |
 | `squirrel_audit` | Website audit (SEO, perf, security) |
 
-**When to use:** Multi-model perspectives, automatic fallback, consensus/voting, cost tracking.
-
 ## Supabase MCP
 
 **Core:** `list_projects`, `list_tables`, `execute_sql`, `apply_migration`, `get_logs`, `search_docs`
@@ -73,82 +643,31 @@ Launch: `doppler run --project personal --config dev -- node /path/to/server.js`
 
 ## PostHog MCP
 
-**Feature Flags:** `feature-flag-get-all`, `create-feature-flag`, `update-feature-flag`, `feature-flags-user-blast-radius-create`
+**Feature Flags:** `feature-flag-get-all`, `create-feature-flag`, `update-feature-flag`
 **Experiments:** `experiment-get-all`, `experiment-create`, `experiment-results-get`
 **Queries:** `query-run` (HogQL), `query-generate-hogql-from-question`
 **Error Tracking:** `error-tracking-issues-list`, `query-error-tracking-issues`
-**LLM Analytics:** `get-llm-total-costs-for-project`, `llm-analytics-sentiment-create`
-**Surveys:** `surveys-get-all`, `survey-create`, `survey-stats`
-**Cohorts/Persons:** `cohorts-list`, `persons-list`, `persons-property-set`
-**Dashboards:** `dashboards-get-all`, `dashboard-create`
+
+## Code Intelligence Stack
+
+| Tool | Analysis Type | Speed | Best For |
+|------|---------------|-------|----------|
+| **Axon** | Graph (call chains, impact) | Fast | "What calls this?", "What breaks?" |
+| **Semgrep** | Pattern + taint | Fast | "Is this pattern vulnerable?" |
+| **CodeQL** | Deep dataflow | Slow | "Can attacker-controlled data reach here?" |
+
+**Combined:** Axon (structure) → Semgrep (patterns) → CodeQL (deep) → Multi-model (stress test)
 
 ## Skills (Slash Commands)
 
 | Skill | Description |
 |-------|-------------|
-| `/audit-website` | SEO, performance, security audit via Squirrel |
+| `/audit-website` | SEO, performance, security audit |
 | `/codex` | OpenAI Codex for patches |
 | `/multi-llm-review` | Multi-model code review |
-| `/multifix` | Multi-model bug fixing with broadcast/mixture modes |
-| `/react-best-practices` | Vercel React/Next.js guidelines |
-| `/vercel-deploy-claimable` | Deploy to Vercel without auth |
-| `/web-design-guidelines` | UI accessibility review |
-
-**Skill locations:** `.claude/skills/*/SKILL.md` (project) > `~/.claude/skills/*/SKILL.md` (user)
-
-## Workflow Contract
-
-1. **Claude analyzes** → 2. **MiniMax/DeepSeek stress test** → 3. **Claude compares** → 4. **Codex builds** → 5. **Claude validates**
-
-### Output Schema (non-trivial tasks)
-
-1. Claude Diagnosis
-2. Secondary Model Findings
-3. Confirmed Issues / Rejected Findings
-4. Codex Patch (if applicable)
-5. Why This Fix Works
-6. Risks Introduced
-7. Verification Steps
-
-### Evidence Standard
-
-- Separate `verified`, `inferred`, `assumed`
-- Prefer runtime evidence over code inspection for operational questions
-- No "works" claim from code inspection alone
-
-### Uncertainty Escalation
-
-1. `direct fix` - obvious target, cause, change
-2. `guided discovery` - location unclear
-3. `advisory board` - 2+ plausible root causes
-4. `multifix` - regression-prone, cross-file, production-sensitive
-
-## Model Selection
-
-| Task | Primary | Secondary | Builder |
-|------|---------|-----------|---------|
-| Bug hunting | Claude | MiniMax, DeepSeek | Codex |
-| Code review | Claude | Gemini | - |
-| Architecture | Claude | DeepSeek | - |
-| Long file | Claude | Moonshot | - |
-| Edge cases | Claude | MiniMax | - |
-| Fast patches | Claude | - | Codex |
-
-| Complexity | Model |
-|------------|-------|
-| Simple (fetch, grep) | Haiku |
-| Medium (analysis) | Sonnet |
-| Complex (architecture) | Opus |
-
-## API Endpoints
-
-- Gemini: `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent`
-- DeepSeek: `https://api.deepseek.com/chat/completions`
-- Moonshot: `https://api.moonshot.ai/v1/chat/completions`
-- Chutes: `https://llm.chutes.ai/v1/chat/completions`
-- MiniMax: `https://api.minimax.io/v1/text/chatcompletion_v2`
-- Venice: `https://api.venice.ai/api/v1/chat/completions`
-- OpenRouter: `https://openrouter.ai/api/v1/chat/completions`
+| `/multifix` | Multi-model bug fixing |
+| `/dead-code` | Find/remove dead code with confidence scoring |
+| `/enforce` | Fix quality issues with proof requirements |
 
 ## Hard Rules
 
@@ -160,62 +679,47 @@ Launch: `doppler run --project personal --config dev -- node /path/to/server.js`
 - Smallest safe change principle
 - Direct API first, OpenRouter fallback only
 - No operational claim without runtime evidence
+- No fabrication (never invent numbers/prices/measurements)
+
+**Security rules (from Claude Code):**
+- **validateInput()** before any model call
+- **checkPermissions()** respects current mode
+- **Trust levels enforced** - LOW trust = read-only
+- **Destructive actions** require explicit confirmation
+- **Auto-deny patterns** block dangerous commands
+- **Sandbox required** for build/install commands
+- **Denial tracking** learns from rejections
 
 ---
 
 ## Agent Execution Protocol
 
-### Discovery
+### Discovery Stack
 
-- AXON first → grep/ripgrep → targeted Read → act
-- Don't guess locations when tools can resolve faster
+```
+AXON → grep/ripgrep → targeted Read → act
+```
+
+Never guess locations. Never skip AXON when available.
 
 ### Tool Sequencing
 
-- Edit requires prior Read of that file
+- Edit requires prior Read
 - Write operations run serially
-- Glob/Grep/Read/WebFetch can run parallel when independent
-
-### Subagents
-
-**Use for:** exploratory work, multi-file investigation, isolating uncertainty
-**Don't use for:** simple direct edits, obvious single-file fixes
-
-### Failure Response
-
-- On failure: shrink scope, retry once
-- On repeated failure: change approach
-- Never retry with identical inputs
-
-### Task Management
-
-- Use TodoWrite for multi-step tasks
-- Max one task `in_progress` at a time
-- Mark complete immediately
+- Glob/Grep/Read/WebFetch can run parallel
 
 ### Validation
 
 - After Edit: re-read to confirm
 - After Write: verify content
 - After Bash: check exit code
+- **Never claim "done" without verification step**
 
 ### Memory (Mem0)
 
-- Recall before: bug fixing, architecture decisions
-- Store after: successful fixes, decisions, edge cases
-- Never store: secrets, full file contents, paths with usernames
-
-### Output Requirements
-
-- No "I will do X" without doing X
-- No TODO/FIXME unless user allows
-- "Done" requires verification
-- Don't present guess as conclusion
-
-### Intent Gate
-
-Analyze true user intent before acting:
-- "fix the tests" = fix underlying bug, not skip tests
+**Recall before:** bug fixing, architecture decisions, repeated tasks
+**Store after (MANDATORY):** successful fixes, config changes, decisions with rationale, edge cases
+**Never store:** secrets, full file contents, raw stack traces
 
 ### Prohibitions
 
@@ -226,61 +730,45 @@ Analyze true user intent before acting:
 | Retrying identical params | Change approach |
 | Globbing `**/*` unfiltered | Add path filter |
 | "Done" without verification | Verify first |
-| Live system healthy claim without evidence | Gather runtime evidence |
 | Multiple writes same file parallel | Serialize |
-| Storing secrets to memory | Redact or skip |
-| Risky edit with incomplete confidence | Use /multifix |
-| Expensive model for utility task | Use speed-tier |
-| Pending todos while idle | Re-engage |
-
-### Session Recovery
-
-| Failure | Recovery |
-|---------|----------|
-| Context exceeded | Graceful compaction |
-| Edit failed (stale) | Re-read, shrink scope |
-| API error | Try next in fallback chain |
-| Tool timeout | Retry smaller scope |
+| Skip multifix on trigger keywords | Auto-invoke multifix |
+| Start without PRD | Classify → generate PRD |
+| Claim step complete without evidence | Verify, provide evidence |
+| Stop before 100% | Ralph loop until all ✓ |
+| Fabricate numbers/prices | Use placeholders |
+| Skip validateInput() | Always validate first |
+| Ignore permission mode | Check checkPermissions() |
+| LOW trust model executing | Enforce read-only |
+| Command matches auto-deny | Block and log |
+| Destructive without confirmation | Require explicit approval |
+| Skip cost estimation | estimateCost() before API call |
 
 ---
 
-## Operational Skills
+## Ralph Loop
 
-### Postmortem
+**Task not complete until:**
+- Zero pending todos
+- All PRD items ✓
+- Tests pass (if exist)
+- Evidence collected
+- Mem0 stored
 
-**Trigger:** Failed fix, regression, rollback, broken test/deploy
+**Do not stop before 100%.**
 
-**Output:** Issue, root cause, failed assumption, why not caught earlier, solution, prevention, memory to write
+## Magic Keywords
 
-### Self-Healing
-
-**Trigger:** User correction, failed attempt, reverted edit
-
-**Store:** Mistake pattern, missed signal, better decision rule
-
-### Memory Map
-
-**Trigger:** Entering unfamiliar repo
-
-**Build:** Entry points, important modules, hot paths, fragile zones, key facts
-
-### Codebase Pattern
-
-**Trigger:** Before implementing in unfamiliar area
-
-**Extract:** Naming conventions, file layout, error handling, logging, validation, API style
-
-### Operational Verification
-
-**Trigger:** Cron, webhooks, deployments, "is it working?"
-
-**Proof:** Live config → handler path → runtime evidence → result object
-
-### Superpower
-
-**Trigger:** High uncertainty, rising search cost
-
-**Stack:** AXON → grep → reads → subagents → Mem0 recall → /multifix → validate
+| Keyword | Action |
+|---------|--------|
+| `ultrawork`/`ulw` | Full autonomous execution |
+| `autopilot:` | Full autonomous execution |
+| `ralph:` | Verify/fix loops until 100% |
+| `deepsearch` | Codebase search routing |
+| `ultrathink` | Deep reasoning mode |
+| `deslop`/`cleanup` | Regression-safe refactoring |
+| `interview:` | Prometheus-style planning |
+| `secaudit` | Full security audit: Axon → Semgrep → CodeQL |
+| `enforce` | Quality fix with proof requirements |
 
 ## /multifix Workflow
 
@@ -295,30 +783,13 @@ Analyze true user intent before acting:
 ### Phases
 
 1. Memory Recall (Mem0)
-2. System Mapping (Axon + ripgrep)
+2. System Mapping (Axon + Semgrep + ripgrep)
 3. Multi-model Analysis
 4. Visual Disagreement Matrix
 5. Auto-escalate if confidence < 0.7
 6. Claude decides root cause
 7. Codex builds patch
-8. K8s submission (if --submit)
-9. Memory storage
-
-### Visual Matrix
-
-```
-┌──────────┬──────────┬──────────┬──────────┐
-│          │ MiniMax  │ DeepSeek │ GPT-4o   │
-├──────────┼──────────┼──────────┼──────────┤
-│ Root     │ race     │ null     │ race     │
-│ Cause    │ condition│ check    │ condition│
-└──────────┴──────────┴──────────┴──────────┘
-CLUSTERS: A (2/3): race condition │ B (1/3): null check
-```
-
-### Flags
-
-`--broadcast` (all models), `--mixture` (one per family), `--visual`, `--local-only`, `--submit`
+8. Memory storage
 
 ### Rules
 
@@ -326,113 +797,43 @@ CLUSTERS: A (2/3): race condition │ B (1/3): null check
 - Cluster by finding, not by name
 - Cross-family agreement = stronger signal
 
-## Token Optimization
+## Model Selection
 
-| Task | Resources |
-|------|-----------|
-| Simple | Haiku, one call |
-| Complex | Multiple models, consensus |
+| Task | Primary | Secondary | Builder |
+|------|---------|-----------|---------|
+| Bug hunting | Claude | MiniMax, DeepSeek | Codex |
+| Code review | Claude | Gemini | - |
+| Architecture | Claude | DeepSeek | - |
+| Edge cases | Claude | MiniMax | - |
+| Security audit | Semgrep | Claude, MiniMax | Codex |
 
-**Bloated Schema Isolation:** Use Task agent (haiku) to isolate MCP schema in subagent.
+| Complexity | Model |
+|------------|-------|
+| Simple (fetch, grep) | Haiku |
+| Medium (analysis) | Sonnet |
+| Complex (architecture) | Opus |
 
----
+## API Endpoints
 
-## Learnable Skills System
-
-### Quality Gates
-
-| Gate | Description |
-|------|-------------|
-| Non-Googleable | Can't find via search |
-| Context-specific | Tied to actual codebases |
-| Hard-won | Required debugging effort |
-| Actionable | Tells exactly what and where |
-
-**Reject:** Generic patterns, basic library usage, anything in docs.
-
-### Skill Format
-
-```markdown
-# Skill: [name]
-## Principle - [insight]
-## Recognition Signals - [when to apply]
-## Decision Approach - [steps]
-## Example Context - [file, error, solution]
-```
-
-## Magic Keywords
-
-| Keyword | Action |
-|---------|--------|
-| `ultrawork`/`ulw` | Full autonomous execution |
-| `autopilot:` | Full autonomous execution |
-| `ralph:` | Verify/fix loops until 100% |
-| `deepsearch` | Codebase search routing |
-| `ultrathink` | Deep reasoning mode |
-| `deslop`/`cleanup` | Regression-safe refactoring |
-| `interview:` | Prometheus-style planning |
-
-## Discipline Agent Roles
-
-| Role | Responsibility | Restrictions |
-|------|----------------|--------------|
-| Orchestrator | Plans, delegates | Full access |
-| Deep Worker | Autonomous execution | Full access |
-| Planner | Strategic planning | Read + plan only |
-| Consultant | Architecture review | Read-only |
-| Librarian | Doc search | Read-only |
-| Explorer | Fast grep | Read-only |
-| Executor | Todo-driven | No delegation |
-| Reviewer | Validation | Read-only |
-
-## Category Routing
-
-| Category | Model | Use Cases |
-|----------|-------|-----------|
-| `visual-engineering` | Gemini | Frontend, UI/UX |
-| `deep` | GPT/DeepSeek | Autonomous research |
-| `quick` | MiniMax/Haiku | Single-file, typos |
-| `ultrabrain` | Opus | Architecture |
-| `writing` | Gemini Flash | Documentation |
-
-## Lifecycle Hooks
-
-**Completion:** Todo Enforcer (re-engage on idle), Ralph Loop (verify until 100%), Completion Gate (zero pending)
-**Quality:** Comment Checker (no AI slop), Edit Validator, Pattern Matcher
-**Recovery:** Session Recovery, Edit Recovery, Fallback Chain
-
-**AI Slop to avoid:** "This is a placeholder", "TODO: implement later", "AI-generated", obvious comments
-
-## Interview-Mode Planning
-
-**Trigger:** "plan", "design", "architect", ambiguous requirements
-
-**Process:** Gather → Identify ambiguities → Propose options → Validate → Plan → Review
-
-**Plan validation criteria:** Clarity, Verifiability, Completeness, Atomicity, Reversibility
-
-## Parallel Agent Execution
-
-**Parallelize:** Independent searches, multi-file analysis, consensus building
-**Serialize:** Dependent operations, same file modifications
-
-| Provider | Max Concurrent |
-|----------|----------------|
-| Expensive (Opus, GPT-4) | 2-3 |
-| Standard (Sonnet) | 5 |
-| Cheap (Haiku, MiniMax) | 10+ |
-
-## Hierarchical Context
-
-```
-project/
-├── AGENTS.md          ← project-wide
-├── src/
-│   └── AGENTS.md      ← src-specific (overrides)
-```
+- Gemini: `generativelanguage.googleapis.com`
+- DeepSeek: `api.deepseek.com`
+- Moonshot: `api.moonshot.ai`
+- Chutes: `llm.chutes.ai`
+- MiniMax: `api.minimax.io`
+- Venice: `api.venice.ai`
+- OpenRouter: `openrouter.ai` (fallback only)
 
 ## Handoff
 
 1. Verify Doppler: `doppler run --project personal --config dev -- env | grep API_KEY`
-2. Test MCPs: `mcp__minimax__minimax_chat`, `mcp__openrouter__openrouter_chat`
-3. Stack status: 11 models working
+2. Test MCPs: `mcp__minimax__minimax_chat`, `mcp__orchestrator__consensus`
+3. Code intelligence: `axon --version`, `semgrep --version`
+4. Stack status: 14 components working
+5. New capabilities (from Claude Code architecture):
+   - Permission system: 4 modes (default, plan, auto, bypass)
+   - Model trust levels: HIGH/MEDIUM/LOW per model
+   - Command security: AST parsing, path validation, auto-deny patterns
+   - Tool interface: ModelTool<I,O,P> with validation/permissions
+   - Context compression: 3-layer snip/semantic/summary
+   - Progress tracking: Phase events with cost/confidence
+   - Session persistence: Transcripts, denials, performance metrics
