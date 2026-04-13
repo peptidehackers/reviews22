@@ -823,6 +823,55 @@ Never guess locations. Never skip AXON when available.
 - Venice: `api.venice.ai`
 - OpenRouter: `openrouter.ai` (fallback only)
 
+## Python Libraries
+
+### Scrapling (Web Scraping)
+
+Adaptive web scraping framework. Docs: https://scrapling.readthedocs.io
+
+**Install:** `pip install scrapling`
+
+**Fetchers:**
+| Fetcher | Use Case |
+|---------|----------|
+| `Fetcher` | Fast HTTP with browser TLS fingerprint |
+| `StealthyFetcher` | Anti-bot bypass, Cloudflare Turnstile |
+| `DynamicFetcher` | Full browser automation (Playwright) |
+
+**Quick Examples:**
+```python
+# Session-based scraping
+from scrapling.fetchers import Fetcher, FetcherSession
+
+with FetcherSession(impersonate='chrome') as session:
+    page = session.get('https://example.com/')
+    items = page.css('.item::text').getall()
+
+# Stealth mode (anti-bot)
+from scrapling.fetchers import StealthyFetcher
+page = StealthyFetcher.fetch('https://example.com', headless=True)
+products = page.css('.product', adaptive=True)  # Auto-relocates if DOM changes
+```
+
+**Spider Framework:**
+```python
+from scrapling.spiders import Spider, Response
+
+class MySpider(Spider):
+    name = "scraper"
+    start_urls = ["https://example.com/"]
+    concurrent_requests = 10
+
+    async def parse(self, response: Response):
+        for item in response.css('.item'):
+            yield {"title": item.css('h2::text').get()}
+
+result = MySpider().start()
+result.items.to_json("output.json")
+```
+
+**Features:** Adaptive element tracking, CSS/XPath selectors, proxy rotation, pause/resume, robots.txt compliance, DNS-over-HTTPS.
+
 ## Handoff
 
 1. Verify Doppler: `doppler run --project personal --config dev -- env | grep API_KEY`
