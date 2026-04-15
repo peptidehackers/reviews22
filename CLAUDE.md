@@ -429,7 +429,7 @@ ISSUES_FOUND:
 ```
 
 ### 3. Design
-Define minimal fix. No over-engineering.
+Define minimal fix (apply Karpathy §2: Simplicity First).
 
 ### 4. Execute
 Apply fixes. Max 5 auto-safe per batch.
@@ -736,16 +736,10 @@ Launch: `doppler run --project personal --config dev -- node /path/to/server.js`
 - **Codex builds** after approval
 - **Mem0 remembers** fix patterns
 - Force disagreement checking
-- Smallest safe change principle
 - Direct API first, OpenRouter fallback only
 - No operational claim without runtime evidence
 - No fabrication (never invent numbers/prices/measurements)
-
-**Karpathy rules:**
-- **Think first** — surface assumptions, ask when unclear
-- **Simplicity** — minimum code, nothing speculative (200→50 test)
-- **Surgical** — touch only what you must, line-traceability test
-- **Goal-driven** — verifiable success criteria before coding
+- **Karpathy principles apply** (see §Karpathy Guidelines)
 
 **Security rules (from Claude Code):**
 - **validateInput()** before any model call
