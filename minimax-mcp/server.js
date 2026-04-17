@@ -22,7 +22,7 @@ async function callMiniMax(prompt, system, maxTokens = 4096) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "x-api-key": MINIMAX_API_KEY,
+      "Authorization": `Bearer ${MINIMAX_API_KEY}`,
       "anthropic-version": "2023-06-01"
     },
     body: JSON.stringify({
