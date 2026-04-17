@@ -1,0 +1,52 @@
+{
+  "hooks": {
+    "internal": {
+      "enabled": true,
+      "entries": {
+        "pre-execution-governance": {
+          "enabled": false
+        }
+      }
+    }
+  },
+  "gateway": {
+    "mode": "local",
+    "auth": {
+      "mode": "token",
+      "token": "REDACTED_SET_VIA_ENV_OR_LOCAL_OVERRIDE"
+    }
+  },
+  "skills": {
+    "entries": {
+      "apple-reminders": {
+        "enabled": false
+      }
+    }
+  },
+  "agents": {
+    "defaults": {
+      "workspace": "{{HOME}}/.openclaw/workspace",
+      "model": {
+        "primary": "openai-codex/gpt-5.4"
+      },
+      "models": {
+        "openai-codex/gpt-5.4": {}
+      }
+    }
+  },
+  "plugins": {
+    "allow": [
+      "openai",
+      "pre-execution-governance",
+      "memory-core"
+    ],
+    "entries": {
+      "pre-execution-governance": {
+        "enabled": true
+      },
+      "openai": {
+        "enabled": true
+      }
+    }
+  }
+}

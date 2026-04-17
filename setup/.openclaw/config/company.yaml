@@ -1,0 +1,48 @@
+# Local Operating Context
+#
+# This file is descriptive context only.
+# It is not a live budget or authority engine.
+
+---
+
+company:
+  id: default
+  name: "Primary Operations"
+  mission: "Build and maintain AI-assisted development workflows"
+  created: "2026-04-04"
+
+teams:
+  - id: engineering
+    name: "Engineering"
+    focus: "Ship reliable code and workflow improvements"
+    workers:
+      - openclaw-main
+      - codex-cli
+
+  - id: operations
+    name: "Operations"
+    focus: "Keep systems running and verifiable"
+    workers:
+      - openclaw-main
+
+  - id: research
+    name: "Research"
+    focus: "Explore new models, patterns, and tooling"
+    workers:
+      - openclaw-main
+
+routing_context:
+  default_team: engineering
+  intent_hints:
+    code: engineering
+    debug: engineering
+    deploy: operations
+    research: research
+
+audit_context:
+  log_location: "~/.openclaw/workspace/memory/YYYY-MM-DD.md"
+  retention_days: 90
+
+notes:
+  - "Budget and token accounting are historical only and are not enforced from this file."
+  - "Use config/truth-policy.md and config/boundary-contract.yaml for current operating rules."

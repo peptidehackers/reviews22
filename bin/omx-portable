@@ -5,7 +5,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # Self-heal unless skipped
 if [[ "${OMX_PORTABLE_SKIP_GUARD:-0}" != "1" ]]; then
-    "$ROOT/scripts/self-heal-codex.sh" --quiet 2>/dev/null || true
+    "$ROOT/scripts/self-heal.sh" --quiet 2>/dev/null || true
 fi
 
 exec npx --yes oh-my-codex "$@"

@@ -1,0 +1,20 @@
+wing: .openclaw
+rooms:
+- name: workspace
+  description: Files from workspace/
+  keywords: [workspace]
+- name: skills
+  description: Files from skills/
+  keywords: [skills]
+- name: configuration
+  description: Files from config/
+  keywords: [config, configuration]
+- name: hooks
+  description: Files from hooks/
+  keywords: [hooks]
+- name: state
+  description: Files from state/
+  keywords: [state]
+- name: general
+  description: Files that do not fit a more specific room
+  keywords: []

@@ -8,6 +8,10 @@ Related doc:
 
 - [codex-portability.md](./codex-portability.md)
 
+Related baseline:
+
+- `setup/.openclaw/` now mirrors the reference repo's portable OpenClaw workspace/governance layer
+
 ## 3-Layer Design
 
 ```

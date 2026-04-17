@@ -1,0 +1,78 @@
+# Boundary Contract v3.0
+# Live governance configuration consumed by enforce.py.
+# Descriptive docs live in workspace/QUALITY-SYSTEM.md and workspace/RETRIEVAL-MAP.md.
+
+allowed_sources:
+  - cli
+  - telegram
+  - discord
+  - slack
+  - whatsapp
+  - webchat
+  - signal
+  - imessage
+  - matrix
+
+risky_task_patterns:
+  medium:
+    - write
+    - edit
+    - patch
+    - exec
+    - run
+  high:
+    - gateway
+    - config
+    - architecture
+    - implementation
+    - dependency
+    - auth
+    - token
+    - key
+    - secret
+  critical:
+    - rm
+    - delete
+    - drop
+    - truncate
+    - destroy
+    - remove
+    - reset --hard
+
+authority_rules:
+  cli:
+    risk_limit: critical
+  telegram:
+    risk_limit: high
+  discord:
+    risk_limit: high
+  slack:
+    risk_limit: high
+  whatsapp:
+    risk_limit: high
+  webchat:
+    risk_limit: high
+  signal:
+    risk_limit: high
+  imessage:
+    risk_limit: high
+  matrix:
+    risk_limit: high
+
+self_healing_limits:
+  max_retries: 2
+  retry_delay_seconds: 30
+  retryable_failures:
+    - config
+    - auth
+    - state
+    - routing
+    - execution
+
+notes:
+  model: "truth-first, risk-based, freeze-aware governance"
+  freeze_lock: "workspace/state/freeze.json limits mutating work to one root when active"
+  removed:
+    - budget tracking
+    - token accounting
+    - cost-based review gates
