@@ -138,7 +138,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               type: "array",
               items: {
                 type: "string",
-                enum: ["minimax", "deepseek", "moonshot", "gemini", "gpt4o", "gpt4omini", "gpt54", "qwen", "llama", "venice", "chutes"],
+                enum: ["minimax", "deepseek", "moonshot", "gemini", "gpt4o", "gpt4omini", "gpt54", "gpt54mini", "qwen", "llama", "venice", "chutes"],
               },
               description: "Models to query (default: auto-selected based on task)",
             },
@@ -244,7 +244,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           properties: {
             model: {
               type: "string",
-              enum: ["minimax", "deepseek", "moonshot", "gemini", "gpt4o", "gpt4omini", "gpt54", "qwen", "llama", "venice", "chutes"],
+              enum: ["minimax", "deepseek", "moonshot", "gemini", "gpt4o", "gpt4omini", "gpt54", "gpt54mini", "qwen", "llama", "venice", "chutes"],
               description: "Model to call",
             },
             prompt: {
@@ -647,7 +647,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       // Determine which models to use
       let targetModels = models;
-      if (!targetModels || targetModels.length === 0) {
+
+      // Handle string input (parse JSON if needed)
+      if (typeof targetModels === "string") {
+        try {
+          targetModels = JSON.parse(targetModels);
+        } catch {
+          targetModels = targetModels.split(",").map(m => m.trim());
+        }
+      }
+
+      if (!targetModels || !Array.isArray(targetModels) || targetModels.length === 0) {
         const route = routeTask(task_type || prompt);
         targetModels = route.consensusModels;
       }

@@ -126,7 +126,7 @@ async function callOpenAICompatible(url, apiKey, model, prompt, system, maxToken
 }
 
 /**
- * Call OpenRouter API
+ * Call OpenRouter API (for non-GPT models like Qwen, Llama)
  */
 async function callOpenRouter(model, prompt, system, maxTokens = 4096) {
   if (!OPENROUTER_API_KEY) {
@@ -168,6 +168,52 @@ async function callOpenRouter(model, prompt, system, maxTokens = 4096) {
   const outputTokens = data.usage?.completion_tokens || Math.ceil(text.length / 4);
 
   return { text, inputTokens, outputTokens };
+}
+
+/**
+ * Call GPT models via Codex CLI (uses OAuth, not API key)
+ */
+async function callCodex(model, prompt, system, maxTokens = 4096) {
+  const { execSync } = await import("child_process");
+
+  // Map model names to Codex model IDs
+  const codexModels = {
+    "gpt54": "gpt-5.4",
+    "gpt54mini": "gpt-5.4-mini"
+  };
+
+  const codexModel = codexModels[model];
+  if (!codexModel) {
+    throw new Error(`Unknown Codex model: ${model}`);
+  }
+
+  // Build the prompt with system instruction if provided
+  const fullPrompt = system ? `${system}\n\n${prompt}` : prompt;
+
+  // Escape the prompt for shell (using double quotes and escaping)
+  const escapedPrompt = fullPrompt.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/`/g, '\\`').replace(/\$/g, '\\$');
+
+  try {
+    // Pipe prompt via stdin to avoid shell escaping issues
+    const result = execSync(
+      `echo "${escapedPrompt}" | codex exec --skip-git-repo-check -m ${codexModel} --sandbox read-only 2>/dev/null`,
+      {
+        encoding: "utf-8",
+        timeout: 120000,  // 2 minute timeout
+        maxBuffer: 10 * 1024 * 1024,  // 10MB buffer
+        shell: "/bin/bash"
+      }
+    );
+
+    const text = result.trim();
+    // Estimate tokens (rough approximation)
+    const inputTokens = Math.ceil((fullPrompt.length) / 4);
+    const outputTokens = Math.ceil(text.length / 4);
+
+    return { text, inputTokens, outputTokens };
+  } catch (error) {
+    throw new Error(`Codex error: ${error.message}`);
+  }
 }
 
 /**
@@ -265,6 +311,10 @@ export async function callModel(model, prompt, system = null, maxTokens = 4096, 
 
       case "openrouter":
         result = await callOpenRouter(model, prompt, system, maxTokens);
+        break;
+
+      case "codex":
+        result = await callCodex(model, prompt, system, maxTokens);
         break;
 
       case "anthropic":

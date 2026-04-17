@@ -17,6 +17,7 @@ export const MODEL_TRUST = {
   "claude-haiku": TRUST_LEVELS.HIGH,
   gpt4o: TRUST_LEVELS.HIGH,
   "gpt54": TRUST_LEVELS.HIGH,
+  "gpt54mini": TRUST_LEVELS.HIGH,
 
   // Medium trust - reliable but secondary
   deepseek: TRUST_LEVELS.MEDIUM,
