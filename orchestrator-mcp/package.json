@@ -1,0 +1,26 @@
+{
+  "name": "orchestrator-mcp",
+  "version": "1.0.0",
+  "description": "Multi-LLM orchestrator with intelligent routing, fallback chains, consensus, and cost tracking",
+  "type": "module",
+  "main": "server.js",
+  "bin": {
+    "orchestrator-mcp": "./server.js"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "keywords": [
+    "mcp",
+    "llm",
+    "orchestrator",
+    "multi-model"
+  ],
+  "author": "",
+  "license": "MIT"
+}

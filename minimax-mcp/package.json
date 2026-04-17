@@ -1,0 +1,14 @@
+{
+  "name": "minimax-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for MiniMax API",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.52.0",
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  }
+}
