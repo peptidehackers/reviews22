@@ -1,0 +1,75 @@
+# oh-my-codex top-level settings (must be before any [table])
+notify = ["node", "{{OH_MY_CODEX_ROOT}}/dist/scripts/notify-hook.js"]
+model_reasoning_effort = "high"
+developer_instructions = "You have oh-my-codex installed. AGENTS.md is your orchestration brain and the main orchestration surface. Use skill/keyword routing like $name plus spawned role-specialized subagents for specialized work."
+
+model_context_window = 1000000
+model_auto_compact_token_limit = 900000
+
+model = "gpt-5.4"
+service_tier = "fast"
+
+[projects."{{HOME}}"]
+trust_level = "trusted"
+
+[notice.model_migrations]
+"gpt-5.3-codex" = "gpt-5.4"
+gpt-5-codex = "gpt-5.4"
+
+[plugins."github@openai-curated"]
+enabled = true
+
+[features]
+multi_agent = true
+child_agents_md = true
+codex_hooks = true
+
+[env]
+USE_OMX_EXPLORE_CMD = "1"
+
+[agents]
+max_threads = 6
+max_depth = 2
+
+# OMX MCP Servers
+[mcp_servers.omx_state]
+command = "node"
+args = ["{{OH_MY_CODEX_ROOT}}/dist/mcp/state-server.js"]
+enabled = true
+startup_timeout_sec = 5
+
+[mcp_servers.omx_state.tools.state_get_status]
+approval_mode = "approve"
+
+[mcp_servers.omx_memory]
+command = "node"
+args = ["{{OH_MY_CODEX_ROOT}}/dist/mcp/memory-server.js"]
+enabled = true
+startup_timeout_sec = 5
+
+[mcp_servers.omx_memory.tools.project_memory_read]
+approval_mode = "approve"
+
+[mcp_servers.omx_memory.tools.notepad_read]
+approval_mode = "approve"
+
+[mcp_servers.omx_code_intel]
+command = "node"
+args = ["{{OH_MY_CODEX_ROOT}}/dist/mcp/code-intel-server.js"]
+enabled = true
+startup_timeout_sec = 10
+
+[mcp_servers.omx_code_intel.tools.ast_grep_search]
+approval_mode = "approve"
+
+[mcp_servers.omx_trace]
+command = "node"
+args = ["{{OH_MY_CODEX_ROOT}}/dist/mcp/trace-server.js"]
+enabled = true
+startup_timeout_sec = 5
+
+[mcp_servers.omx_wiki]
+command = "node"
+args = ["{{OH_MY_CODEX_ROOT}}/dist/mcp/wiki-server.js"]
+enabled = true
+startup_timeout_sec = 5

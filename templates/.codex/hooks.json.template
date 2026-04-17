@@ -1,0 +1,11 @@
+{
+  "hooks": [
+    {
+      "name": "omx-pre-post",
+      "type": "pre_post",
+      "pre": "node {{OH_MY_CODEX_ROOT}}/dist/scripts/codex-native-pre-post.js pre",
+      "post": "node {{OH_MY_CODEX_ROOT}}/dist/scripts/codex-native-pre-post.js post",
+      "enabled": true
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+if [[ "${OMX_PORTABLE_SKIP_GUARD:-0}" != "1" ]]; then
+  "$ROOT/scripts/self-heal-codex.sh" --quiet 2>/dev/null || true
+fi
+
+exec npx --yes oh-my-codex "$@"

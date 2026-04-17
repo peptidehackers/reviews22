@@ -1,0 +1,21 @@
+.shopify
+.vercel
+.env*.local
+node_modules
+.omx/
+entities.json
+mempalace.yaml
+
+# MemPalace generated files
+entities.json
+mempalace.yaml
+.mempalace/
+
+# Neo generated files
+.neo/index.json
+.neo/sessions/
+
+# OMX runtime state (keep templates, ignore generated)
+.omx/state/
+.omx/logs/
+.omx/metrics.json
