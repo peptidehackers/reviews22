@@ -171,16 +171,25 @@ DIAGNOSE:
         file: <path>:<line>
         evidence: "<proof>"
         confidence: VERIFIED|HIGH|MEDIUM|LOW|ASSUMED
+    HYPOTHESIS: "<what we think is wrong>"
 
 EXECUTE:
     FILES_MODIFIED:
       - <path> (lines X-Y)
+    FULL_TRACE: Store complete stdout/stderr (not summary)
 
 VERIFY:
     - Test output captured
     - Diff confirmed
     - Exit codes checked
+
+STORE (on failure):
+    - Full execution trace to ~/.axon/traces/
+    - Hypothesis that was tested
+    - Why it failed (for future reference)
 ```
+
+**Meta-Harness insight:** Full traces enable 44% better performance than summaries. Always preserve raw output.
 
 ### Completion Criteria
 
@@ -255,11 +264,81 @@ Task not complete until:
 | User preference | OpenClaw MEMORY.md |
 
 **Recall before:** bug fixing, architecture decisions, repeated tasks
-**Never store:** secrets, full file contents, raw stack traces
+**Never store:** secrets, full file contents
+
+### Non-Markovian Access (Meta-Harness)
+
+When debugging persistent issues:
+1. Query FULL history of prior attempts (not just recent)
+2. Look for confounds - shared changes across failing iterations
+3. Isolate variables - test one hypothesis at a time
+4. Strategic pivot if 3+ iterations fail with same approach
 
 ---
 
-## 8. Routing
+## 8. Meta-Harness Protocol
+
+**Adopted from [Meta-Harness](https://arxiv.org/html/2603.28052v1): Filesystem-based feedback loops with full trace access.**
+
+### Core Principle
+
+Store full execution traces, not compressed summaries. Performance comparison:
+- Scores only: 34.6% accuracy
+- Scores + summaries: 34.9% accuracy
+- **Full traces: 50.0% accuracy** (44% improvement)
+
+### Trace Storage
+
+```
+~/.axon/traces/
+├── iteration_001/
+│   ├── source.py          # Code attempted
+│   ├── execution.log      # Full stdout/stderr
+│   ├── scores.json        # Evaluation results
+│   └── hypothesis.md      # What we thought would work
+├── iteration_002/
+│   └── ...
+```
+
+### Non-Markovian History Access
+
+Query FULL history, not just recent window:
+```
+BEFORE: Summarize last 5 attempts
+AFTER:  grep/read across ALL prior attempts
+
+Median file reads per iteration: 82 files
+- 41% source code
+- 40% execution traces
+- 19% evaluation scores
+```
+
+### Causal Reasoning Protocol
+
+```
+Iteration 1-2: Bundle fixes → regress
+Iteration 3:   IDENTIFY CONFOUND (shared harmful changes)
+Iteration 4-6: ISOLATE VARIABLES, test hypotheses separately
+Iteration 7:   STRATEGIC PIVOT to additive-only approach → success
+
+Pattern: Hypothesis → Confound isolation → Pivot
+```
+
+### Context Optimization
+
+Less context + better structure > more context:
+- Meta-Harness: 11.4K tokens → better performance
+- Baseline: 50.8K tokens → worse performance
+
+**Rule:** If context > 50K tokens, compress structure, not content.
+
+### Cross-Model Transfer
+
+Harnesses that work across models encode **algorithmic principles**, not dataset heuristics. If a fix only works on one model, it's likely overfitting.
+
+---
+
+## 9. Model Routing
 
 ### Model Selection
 
@@ -292,7 +371,7 @@ Switch to fallback when:
 
 ---
 
-## 9. Karpathy Guidelines
+## 10. Karpathy Guidelines
 
 Behavioral guidelines to reduce common LLM coding mistakes.
 
@@ -320,7 +399,7 @@ Behavioral guidelines to reduce common LLM coding mistakes.
 
 ---
 
-## 10. Prohibitions
+## 11. Prohibitions
 
 **Hard violations only. Rules that belong elsewhere are enforced there.**
 
@@ -345,7 +424,7 @@ Behavioral guidelines to reduce common LLM coding mistakes.
 
 ---
 
-## 11. Task Classification
+## 12. Task Classification
 
 | Size | Criteria | PRD |
 |------|----------|-----|
@@ -354,7 +433,7 @@ Behavioral guidelines to reduce common LLM coding mistakes.
 
 ---
 
-## 12. Auto-Triggers
+## 13. Auto-Triggers
 
 **Multifix keywords (auto-invoke):** bug, error, crash, race condition, concurrency, deadlock, security, vulnerability, injection, review, audit, debug, investigate, refactor, dead code
 
@@ -373,7 +452,7 @@ Behavioral guidelines to reduce common LLM coding mistakes.
 
 ---
 
-## 13. Multifix Workflow
+## 14. Multifix Workflow
 
 **Core execution mode for bug fixing, patching, and safe refactoring.**
 
@@ -404,7 +483,7 @@ Behavioral guidelines to reduce common LLM coding mistakes.
 
 ---
 
-## 14. Skills
+## 15. Skills
 
 | Skill | Description |
 |-------|-------------|
@@ -417,7 +496,7 @@ Behavioral guidelines to reduce common LLM coding mistakes.
 
 ---
 
-## 15. Code Intelligence
+## 16. Code Intelligence
 
 | Tool | Analysis | Best For |
 |------|----------|----------|
@@ -429,7 +508,7 @@ Behavioral guidelines to reduce common LLM coding mistakes.
 
 ---
 
-## 16. Hard Rules
+## 17. Hard Rules
 
 - **Claude decides** final judgment
 - **Secondary models challenge** assumptions
@@ -443,7 +522,7 @@ Behavioral guidelines to reduce common LLM coding mistakes.
 
 ---
 
-## 17. Dead Code Detection
+## 18. Dead Code Detection
 
 | Confidence | Score | Action |
 |------------|-------|--------|
@@ -457,7 +536,7 @@ Behavioral guidelines to reduce common LLM coding mistakes.
 
 ---
 
-## 18. Runtime Dependencies
+## 19. Runtime Dependencies
 
 **Required for system to function. Not optional config.**
 
