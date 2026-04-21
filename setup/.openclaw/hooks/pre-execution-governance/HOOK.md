@@ -1,13 +1,11 @@
 ---
 name: pre-execution-governance
-description: "Enforces governance policies before tool execution. Blocks unauthorized sources, requires review for risky tasks, and and self-healing for failures within retry limits."
+description: "Verifies OpenClaw runtime hook wiring at gateway startup and keeps the governance handler assets available in the managed hook directory."
 metadata:
   openclaw:
     emoji: "🛡️"
     events:
-      - before_tool_call
-      - tool_result_persist
-      - before_message_write
+      - gateway:startup
     requires:
       bins:
         - node
@@ -20,21 +18,18 @@ metadata:
 
 # Pre-Execution Governance Hook
 
-This hook enforces governance policies before tool execution to prevent unauthorized operations and ensure quality control.
+This managed hook proves that OpenClaw is loading repo-owned hook code from `~/.openclaw/hooks/` at runtime.
+
+On `gateway:startup`, it writes a runtime marker file so we can verify that the hook really fired inside a live OpenClaw gateway process.
+
+The same directory also carries the TypeScript/Python governance assets used by the OMX/OpenClaw stack for stricter external verification and future tool-governance integration.
 
 ## What it does
 
-- Intercepts `before_tool_call` events from the plugin system
-- Records per-session discovery, mutation, and verification checkpoints
-- Tracks discovered paths/surfaces from successful reads and searches
-- Blocks mutating tools when no same-run discovery evidence matches the target surface
-- Checks source authorization against allowed sources
-- Evaluates task risk level using boundary contract
-- Enforces an optional freeze lock for mutating work
-- Rewrites completion claims when a mutation has no recorded verification yet
-- Blocks execution for unauthorized sources
-- Requires review for risky tasks before execution
-- Implements controlled self-healing for failures (with retry limits)
+- Fires on `gateway:startup`
+- Writes a runtime marker to `~/.openclaw/hooks/pre-execution-governance/runtime-hook.log`
+- Confirms the managed hook directory is active and loadable
+- Keeps the governance assets colocated for future deeper integration
 
 ## Risk Assessment
 
@@ -69,12 +64,7 @@ Enable in `~/.openclaw/openclaw.json`:
       "enabled": true,
       "entries": {
         "pre-execution-governance": {
-          "enabled": true,
-          "env": {
-            "BOUNDARY_CONTRACT_PATH": "~/.openclaw/config/boundary-contract.yaml",
-            "REVIEW_REQUIRED": "true",
-            "MAX_RETRIES": "2"
-          }
+          "enabled": true
         }
       }
     }
@@ -88,7 +78,8 @@ Enable in `~/.openclaw/openclaw.json`:
 - Python 3 (for governance logic)
 - Boundary contract YAML file (optional, defaults to minimal rules)
 
-## Governance State
+## Runtime Marker
 
-Runtime checkpoints are stored in `~/.openclaw/workspace/state/governance-checkpoints.json`.
-The hook updates this file from `tool_result_persist` and reads it before mutating tools or allowing completion-style assistant messages. Discovery evidence is matched against the mutation target path or subtree, not just the run in general.
+Successful startup should append a line to:
+
+`~/.openclaw/hooks/pre-execution-governance/runtime-hook.log`

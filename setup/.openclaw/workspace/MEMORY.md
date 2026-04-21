@@ -18,7 +18,7 @@ Curated long-term memory for main sessions only.
 ## Current Quality Model
 
 - The active quality stack is documented in `workspace/QUALITY-SYSTEM.md`.
-- Governance enforcement lives in `hooks/pre-execution-governance/`.
+- The managed runtime hook lives in `hooks/pre-execution-governance/` and currently proves gateway startup hook loading with a runtime marker log.
 - The freeze lock is real and backed by `workspace/state/freeze.json`.
 - Specialist skills exist for `plan-eng-review`, `investigate`, `qa-only`, and safety controls.
 

@@ -53,7 +53,7 @@ Key patched files:
 ```bash
 # Initial setup
 ./scripts/install.sh
-./scripts/self-heal-codex.sh
+./scripts/self-heal.sh
 
 # Verify
 ./scripts/verify-runtime.sh
@@ -68,10 +68,10 @@ Key patched files:
 3. Self-heal:
    - Syncs repo-owned `.openclaw` baseline
    - Materializes `.openclaw` templates
-   - Materializes templates into ~/.codex/
+   - Materializes templates into ~/.codex/ and ~/.openclaw/.codex/
    - Ensures Neo and MemPalace are installed
    - Applies overlay files to installed oh-my-codex
-   - Verifies runtime
+   - Verifies OpenClaw + Codex runtime
 4. Executes `npx oh-my-codex` with original args
 
 ## Environment Variables
@@ -80,6 +80,20 @@ Key patched files:
 |----------|---------|---------|
 | `OMX_PORTABLE_SKIP_GUARD` | 0 | Skip self-heal if set to 1 |
 | `TARGET_HOME` | $HOME | Override home directory |
+
+## Verified runtime hook proof
+
+The managed OpenClaw hook `pre-execution-governance` is now enabled through:
+
+- `hooks.internal.entries.pre-execution-governance.enabled = true`
+
+Current verified behavior:
+
+- OpenClaw loads the managed hook during gateway startup
+- the hook writes a startup marker to:
+  - `~/.openclaw/hooks/pre-execution-governance/runtime-hook.log`
+
+This is the current proof artifact for real hook firing inside a live OpenClaw gateway process.
 
 ## Memory Architecture
 
@@ -111,6 +125,16 @@ To replicate this setup on another machine:
 2. Run `./scripts/install.sh`
 3. Run `./scripts/self-heal.sh`
 4. Run `./scripts/verify-codex-behavior.sh`
+
+To simulate a fresh user/home locally:
+
+```bash
+TARGET_HOME=/tmp/openclaw-fresh-home ./scripts/install.sh
+TARGET_HOME=/tmp/openclaw-fresh-home ./scripts/self-heal.sh
+TARGET_HOME=/tmp/openclaw-fresh-home ./scripts/verify-runtime.sh
+TARGET_HOME=/tmp/openclaw-fresh-home ./scripts/verify-codex-runtime.sh
+TARGET_HOME=/tmp/openclaw-fresh-home ./scripts/verify-codex-behavior.sh
+```
 
 ## Troubleshooting
 

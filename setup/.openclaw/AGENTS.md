@@ -21,12 +21,12 @@ Project-specific sources of truth:
 - `workspace/QUALITY-SYSTEM.md` for clarify -> plan -> execute -> verify expectations
 - `workspace/MEMORY-OPERATIONS.md` and `workspace/RETRIEVAL-MAP.md` for durable memory and lookup flow
 - `skills/RESOLVER.md` for local routing rules outside OMX keyword activation
-- `hooks/pre-execution-governance/` and `extensions/pre-execution-governance/` for the live governance runtime
+- `hooks/pre-execution-governance/` for the managed runtime hook and colocated governance assets
 
 Boundary rules:
 - Use OMX and `.codex/` as the primary orchestration layer for this repo.
 - Treat `openclaw.json`, `extensions/`, and runtime logs as implementation/runtime artifacts, not the top-level workflow brain.
-- Do not claim OpenClaw gateway behavior without direct runtime evidence from logs or enforcement output.
+- Do not claim OpenClaw gateway behavior without direct runtime evidence from gateway logs or the runtime hook marker log.
 - Preserve the existing `.openclaw` governance and memory system; OMX sits above it and coordinates work through it.
 
 <guidance_schema_contract>

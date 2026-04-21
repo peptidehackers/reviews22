@@ -76,6 +76,15 @@ interface BeforeMessageWriteResult {
   message?: unknown;
 }
 
+interface InternalHookEvent {
+  type?: string;
+  action?: string;
+  sessionKey?: string;
+  context?: Record<string, unknown>;
+  timestamp?: string | Date;
+  messages?: string[];
+}
+
 interface PendingToolCall {
   tool_name: string;
   classification: ToolClassification;
@@ -129,6 +138,13 @@ const GOVERNANCE_STATE_DIR = path.join(
 );
 const GOVERNANCE_STATE_PATH = path.join(GOVERNANCE_STATE_DIR, "governance-checkpoints.json");
 const COMPLETION_GUARD_MARKER = "[governance-verification-required]";
+const RUNTIME_HOOK_LOG_PATH = path.join(
+  process.env.HOME || process.cwd(),
+  ".openclaw",
+  "hooks",
+  "pre-execution-governance",
+  "runtime-hook.log"
+);
 
 const log = {
   info: (msg: string) => console.error(`[pre-execution-governance] ${msg}`),
@@ -143,6 +159,22 @@ function resolveGovernanceScript(): string {
     "hooks",
     "pre-execution-governance",
     "enforce.py"
+  );
+}
+
+function appendRuntimeHookLog(message: string): void {
+  fs.mkdirSync(path.dirname(RUNTIME_HOOK_LOG_PATH), { recursive: true });
+  fs.appendFileSync(RUNTIME_HOOK_LOG_PATH, `[${new Date().toISOString()}] ${message}\n`);
+}
+
+function isInternalGatewayStartupEvent(value: unknown): value is InternalHookEvent {
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      "type" in value &&
+      "action" in value &&
+      (value as InternalHookEvent).type === "gateway" &&
+      (value as InternalHookEvent).action === "startup"
   );
 }
 
@@ -559,9 +591,19 @@ async function runGovernanceCheck(
 }
 
 export default async function preExecutionGovernanceHandler(
-  event: PluginHookBeforeToolCallEvent,
-  ctx: PluginHookToolContext
+  event: PluginHookBeforeToolCallEvent | InternalHookEvent,
+  ctx?: PluginHookToolContext
 ): Promise<PluginHookBeforeToolCallResult | void> {
+  if (isInternalGatewayStartupEvent(event)) {
+    appendRuntimeHookLog("gateway:startup fired");
+    return;
+  }
+
+  if (!("toolName" in event) || typeof event.toolName !== "string") {
+    appendRuntimeHookLog(`unsupported event ignored`);
+    return;
+  }
+
   log.info(`Processing tool call: ${event.toolName}`);
 
   try {

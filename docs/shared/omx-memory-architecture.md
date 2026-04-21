@@ -11,6 +11,7 @@ Related doc:
 Related baseline:
 
 - `setup/.openclaw/` now mirrors the reference repo's portable OpenClaw workspace/governance layer
+- managed OpenClaw hook firing is currently proven by `~/.openclaw/hooks/pre-execution-governance/runtime-hook.log`
 
 ## 3-Layer Design
 
@@ -50,11 +51,14 @@ Related baseline:
     │
     ├── [if not OMX_PORTABLE_SKIP_GUARD=1]
     │       │
-    │       └── scripts/self-heal-codex.sh --quiet
+    │       └── scripts/self-heal.sh --quiet
     │               │
+    │               ├── sync-openclaw-setup.sh
+    │               ├── materialize_templates.py
     │               ├── materialize-codex-templates.py
     │               ├── ensure-memory-backends.sh
     │               ├── apply_permanence.py
+    │               ├── verify-runtime.sh
     │               └── verify-codex-runtime.sh
     │
     └── npx oh-my-codex "$@"
@@ -135,9 +139,10 @@ omx memory list-backends --input '{
 
 ```bash
 # Self-heal (run automatically by ./omx)
-./scripts/self-heal-codex.sh
+./scripts/self-heal.sh
 
 # Verify runtime setup
+./scripts/verify-runtime.sh
 ./scripts/verify-codex-runtime.sh
 
 # Verify behavior

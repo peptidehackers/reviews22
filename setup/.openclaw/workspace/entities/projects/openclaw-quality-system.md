@@ -5,7 +5,7 @@
 - The quality model is workflow-first, not budget-first.
 - Active stages: triage, plan-eng-review, investigate, review-gate, execution, verification.
 - Safety controls: careful, freeze, guard, unfreeze.
-- Runtime enforcement is handled by the pre-execution governance hook.
+- Verified runtime hook loading is handled by the managed `pre-execution-governance` hook on `gateway:startup`.
 
 ## Verified Facts
 

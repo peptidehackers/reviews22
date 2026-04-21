@@ -8,7 +8,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 TEMPLATES_DIR = ROOT / "templates" / ".codex"
-TARGET_DIR = Path.home() / ".codex"
 
 def get_oh_my_codex_root() -> str:
     try:
@@ -32,6 +31,7 @@ def materialize_template(template_path: Path, target_path: Path, replacements: d
 def main():
     print("Materializing Codex templates...")
     home = os.environ.get("TARGET_HOME", os.environ["HOME"])
+    target_dir = Path(home) / ".codex"
     omx_root = get_oh_my_codex_root()
     replacements = {"{{HOME}}": home, "{{OH_MY_CODEX_ROOT}}": omx_root}
     print(f"  HOME: {home}")
@@ -42,7 +42,7 @@ def main():
         return
     for template_path in templates:
         target_name = template_path.name.replace(".template", "")
-        target_path = TARGET_DIR / target_name
+        target_path = target_dir / target_name
         materialize_template(template_path, target_path, replacements)
     print(f"Materialized {len(templates)} templates")
 

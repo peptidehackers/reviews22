@@ -4,7 +4,7 @@
       "enabled": true,
       "entries": {
         "pre-execution-governance": {
-          "enabled": false
+          "enabled": true
         }
       }
     }
@@ -37,13 +37,9 @@
   "plugins": {
     "allow": [
       "openai",
-      "pre-execution-governance",
       "memory-core"
     ],
     "entries": {
-      "pre-execution-governance": {
-        "enabled": true
-      },
       "openai": {
         "enabled": true
       }

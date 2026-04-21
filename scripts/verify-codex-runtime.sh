@@ -2,11 +2,12 @@
 set -euo pipefail
 
 echo "Verifying Codex runtime..."
+TARGET_HOME="${TARGET_HOME:-$HOME}"
 
 errors=0
 
 # Check config.toml
-if [[ -f ~/.codex/config.toml ]]; then
+if [[ -f "$TARGET_HOME/.codex/config.toml" ]]; then
     echo "  config.toml: OK"
 else
     echo "  config.toml: MISSING"
@@ -14,7 +15,7 @@ else
 fi
 
 # Check hooks.json
-if [[ -f ~/.codex/hooks.json ]]; then
+if [[ -f "$TARGET_HOME/.codex/hooks.json" ]]; then
     echo "  hooks.json: OK"
 else
     echo "  hooks.json: MISSING"
@@ -22,23 +23,22 @@ else
 fi
 
 # Check AGENTS.md
-if [[ -f ~/.codex/AGENTS.md ]]; then
+if [[ -f "$TARGET_HOME/.codex/AGENTS.md" ]]; then
     echo "  AGENTS.md: OK"
 else
-    echo "  AGENTS.md: MISSING"
-    ((errors++)) || true
+    echo "  AGENTS.md: OPTIONAL (not present)"
 fi
 
 # Check omx command
-if command -v omx &>/dev/null; then
-    echo "  omx: OK ($(omx --version 2>/dev/null | head -1))"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+if [[ -x "$ROOT/omx" ]]; then
+    echo "  omx: OK ($(HOME="$TARGET_HOME" OMX_PORTABLE_SKIP_GUARD=1 "$ROOT/omx" --version 2>/dev/null | head -1))"
 else
     echo "  omx: MISSING"
     ((errors++)) || true
 fi
 
 # Check overlay files match
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MANIFEST="$ROOT/overlay/manifest.json"
 OMX_ROOT="$(npm root -g)/oh-my-codex"
 

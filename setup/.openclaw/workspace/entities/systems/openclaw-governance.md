@@ -4,7 +4,8 @@
 
 - `config/truth-policy.md` governs what can be claimed.
 - `config/boundary-contract.yaml` defines the current risk/review model.
-- `hooks/pre-execution-governance/enforce.py` is the live enforcement layer used for direct governance checks.
+- `hooks/pre-execution-governance/handler.ts` is the verified managed runtime hook entrypoint, and `runtime-hook.log` is the proof artifact for gateway startup firing.
+- `hooks/pre-execution-governance/enforce.py` remains the repo-owned governance checker asset colocated with the hook.
 
 ## Safety
 
