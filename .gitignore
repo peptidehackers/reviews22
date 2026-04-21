@@ -1,21 +1,51 @@
-.shopify
-.vercel
-.env*.local
-node_modules
-.omx/
-entities.json
-mempalace.yaml
+# Home-directory repo hygiene:
+# ignore everything by default, then opt in the repo-owned surfaces.
+/*
+!/.gitignore
+!/CLAUDE.md
+!/bin/
+!/docs/
+!/index.html
+!/minimax-mcp/
+!/omx
+!/orchestrator-mcp/
+!/overlay/
+!/scripts/
+!/setup/
+!/templates/
 
-# MemPalace generated files
+# Repo-owned bin surface
+/bin/*
+!/bin/omx-portable
+
+# Repo-owned docs surface
+/docs/*
+!/docs/shared/
+!/docs/shared/codex-portability.md
+!/docs/shared/omx-memory-architecture.md
+!/docs/zellewebhook.md
+
+# Repo-owned templates surface
+/templates/*
+!/templates/.codex/
+!/templates/.codex/config.toml.template
+!/templates/.codex/hooks.json.template
+!/templates/openclaw.json.template
+!/templates/mempalace.yaml.template
+
+# Runtime/generated state
+.omx/
+!.omx/wiki/
+!.omx/wiki/**
 entities.json
 mempalace.yaml
 .mempalace/
-
-# Neo generated files
 .neo/index.json
 .neo/sessions/
 
-# OMX runtime state (keep templates, ignore generated)
-.omx/state/
-.omx/logs/
-.omx/metrics.json
+# Local build/runtime noise inside tracked dirs
+docs/shared/agent-tiers.md
+setup/.openclaw/hooks/pre-execution-governance/__pycache__/
+setup/.openclaw/hooks/pre-execution-governance/package-lock.json
+scripts/__pycache__/
+minimax-mcp/node_modules/
