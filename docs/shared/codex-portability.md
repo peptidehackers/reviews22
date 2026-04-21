@@ -14,8 +14,10 @@ It now also carries a repo-owned `.openclaw` baseline adapted from `macbookproho
 - `templates/mempalace.yaml.template`
 
 Placeholders:
-- `{{HOME}}` - User home directory
-- `{{OH_MY_CODEX_ROOT}}` - npm global oh-my-codex path
+- `{{HOME}}` - target home directory
+- `{{OH_MY_CODEX_ROOT}}` - global oh-my-codex path
+- `{{CODEX_MODEL}}` - Codex CLI model
+- `{{MODEL_PRIMARY}}` - OpenClaw default agent model
 
 ### Overlay
 - `overlay/manifest.json` - SHA256 hashes of patched files
@@ -79,7 +81,13 @@ Key patched files:
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `OMX_PORTABLE_SKIP_GUARD` | 0 | Skip self-heal if set to 1 |
-| `TARGET_HOME` | $HOME | Override home directory |
+| `TARGET_HOME` | `$HOME` | Override the home directory used for materialized files |
+| `OMX_DEFAULT_WORKDIR` | repo root | Default working directory for memory verification/search scripts |
+| `OMX_CODEX_MODEL` | `gpt-5.4` | Default model written into `.codex/config.toml` |
+| `OMX_MODEL_PRIMARY` | `openai-codex/gpt-5.4` | Default model written into `.openclaw/openclaw.json` |
+| `OH_MY_CODEX_ROOT` | auto-detected | Override the detected global oh-my-codex install root |
+| `MEMPALACE_SOURCE_ITEMS` | curated list | Comma-separated list of repo paths to stage for curated MemPalace rebuild |
+| `MEMPALACE_STAGE_DIR` | `.omx/mempalace-source` | Override the staging directory used for curated MemPalace rebuild |
 
 ## Verified runtime hook proof
 
@@ -134,6 +142,15 @@ TARGET_HOME=/tmp/openclaw-fresh-home ./scripts/self-heal.sh
 TARGET_HOME=/tmp/openclaw-fresh-home ./scripts/verify-runtime.sh
 TARGET_HOME=/tmp/openclaw-fresh-home ./scripts/verify-codex-runtime.sh
 TARGET_HOME=/tmp/openclaw-fresh-home ./scripts/verify-codex-behavior.sh
+```
+
+To override the default working directory or model defaults:
+
+```bash
+OMX_DEFAULT_WORKDIR=/path/to/repo \
+OMX_CODEX_MODEL=gpt-5.4 \
+OMX_MODEL_PRIMARY=openai-codex/gpt-5.4 \
+./scripts/self-heal.sh
 ```
 
 ## Troubleshooting

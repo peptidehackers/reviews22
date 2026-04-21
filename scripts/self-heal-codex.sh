@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 QUIET=0
-TARGET_HOME="${TARGET_HOME:-$HOME}"
+source "$ROOT/scripts/lib/runtime-env.sh"
 
 if [[ "${1:-}" == "--quiet" ]]; then
     QUIET=1
@@ -15,23 +15,23 @@ echo "Running self-heal..."
 
 # 1. Sync .openclaw baseline
 if [[ $QUIET -eq 0 ]]; then
-    TARGET_HOME="$TARGET_HOME" bash scripts/sync-openclaw-setup.sh
+    bash scripts/sync-openclaw-setup.sh
 else
-    TARGET_HOME="$TARGET_HOME" bash scripts/sync-openclaw-setup.sh >/dev/null 2>&1
+    bash scripts/sync-openclaw-setup.sh >/dev/null 2>&1
 fi
 
 # 2. Materialize .openclaw templates
 if [[ $QUIET -eq 0 ]]; then
-    TARGET_HOME="$TARGET_HOME" python3 scripts/materialize_templates.py
+    python3 scripts/materialize_templates.py
 else
-    TARGET_HOME="$TARGET_HOME" python3 scripts/materialize_templates.py >/dev/null 2>&1
+    python3 scripts/materialize_templates.py >/dev/null 2>&1
 fi
 
 # 3. Materialize codex templates
 if [[ $QUIET -eq 0 ]]; then
-    TARGET_HOME="$TARGET_HOME" python3 scripts/materialize-codex-templates.py
+    python3 scripts/materialize-codex-templates.py
 else
-    TARGET_HOME="$TARGET_HOME" python3 scripts/materialize-codex-templates.py >/dev/null 2>&1
+    python3 scripts/materialize-codex-templates.py >/dev/null 2>&1
 fi
 
 # 4. Ensure memory backends
@@ -50,9 +50,9 @@ fi
 
 # 6. Verify runtime
 if [[ $QUIET -eq 0 ]]; then
-    TARGET_HOME="$TARGET_HOME" bash scripts/verify-codex-runtime.sh
+    bash scripts/verify-codex-runtime.sh
 else
-    TARGET_HOME="$TARGET_HOME" bash scripts/verify-codex-runtime.sh >/dev/null 2>&1
+    bash scripts/verify-codex-runtime.sh >/dev/null 2>&1
 fi
 
 echo "Self-heal complete"

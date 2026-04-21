@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$ROOT/scripts/lib/runtime-env.sh"
+
 echo "Verifying Codex runtime..."
-TARGET_HOME="${TARGET_HOME:-$HOME}"
 
 errors=0
 
@@ -30,7 +32,6 @@ else
 fi
 
 # Check omx command
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 if [[ -x "$ROOT/omx" ]]; then
     echo "  omx: OK ($(HOME="$TARGET_HOME" OMX_PORTABLE_SKIP_GUARD=1 "$ROOT/omx" --version 2>/dev/null | head -1))"
 else

@@ -13,6 +13,14 @@ Related baseline:
 - `setup/.openclaw/` now mirrors the reference repo's portable OpenClaw workspace/governance layer
 - managed OpenClaw hook firing is currently proven by `~/.openclaw/hooks/pre-execution-governance/runtime-hook.log`
 
+Configurable defaults:
+
+- home path via `TARGET_HOME`
+- default working directory via `OMX_DEFAULT_WORKDIR`
+- Codex model via `OMX_CODEX_MODEL`
+- OpenClaw primary model via `OMX_MODEL_PRIMARY`
+- MemPalace source list via `MEMPALACE_SOURCE_ITEMS`
+
 ## 3-Layer Design
 
 ```

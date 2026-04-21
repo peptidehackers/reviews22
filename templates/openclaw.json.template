@@ -27,10 +27,10 @@
     "defaults": {
       "workspace": "{{HOME}}/.openclaw/workspace",
       "model": {
-        "primary": "openai-codex/gpt-5.4"
+        "primary": "{{MODEL_PRIMARY}}"
       },
       "models": {
-        "openai-codex/gpt-5.4": {}
+        "{{MODEL_PRIMARY}}": {}
       }
     }
   },

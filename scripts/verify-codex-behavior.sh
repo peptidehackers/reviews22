@@ -2,8 +2,9 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-WORKDIR="${TARGET_HOME:-$HOME}"
-RUN_HOME="${TARGET_HOME:-$HOME}"
+source "$ROOT/scripts/lib/runtime-env.sh"
+WORKDIR="$OMX_DEFAULT_WORKDIR"
+RUN_HOME="$TARGET_HOME"
 
 echo "Verifying Codex behavior..."
 

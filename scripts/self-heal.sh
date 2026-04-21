@@ -3,17 +3,17 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 QUIET=0
-TARGET_HOME="${TARGET_HOME:-$HOME}"
+source "$ROOT/scripts/lib/runtime-env.sh"
 if [[ "${1:-}" == "--quiet" ]]; then
   QUIET=1
 fi
 
 cd "$ROOT"
 
-TARGET_HOME="$TARGET_HOME" bash scripts/sync-openclaw-setup.sh >/tmp/openclaw-sync.log
-TARGET_HOME="$TARGET_HOME" python3 scripts/materialize_templates.py >/tmp/openclaw-materialize.log
+bash scripts/sync-openclaw-setup.sh >/tmp/openclaw-sync.log
+python3 scripts/materialize_templates.py >/tmp/openclaw-materialize.log
 bash scripts/self-heal-codex.sh >/tmp/openclaw-codex-self-heal.log
-TARGET_HOME="$TARGET_HOME" bash scripts/verify-runtime.sh >/tmp/openclaw-verify-runtime.log
+bash scripts/verify-runtime.sh >/tmp/openclaw-verify-runtime.log
 
 if [[ "$QUIET" -eq 0 ]]; then
   cat /tmp/openclaw-sync.log

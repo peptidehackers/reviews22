@@ -6,7 +6,7 @@ developer_instructions = "You have oh-my-codex installed. AGENTS.md is your orch
 model_context_window = 1000000
 model_auto_compact_token_limit = 900000
 
-model = "gpt-5.4"
+model = "{{CODEX_MODEL}}"
 service_tier = "fast"
 
 [projects."{{HOME}}"]
