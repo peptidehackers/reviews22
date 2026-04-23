@@ -219,7 +219,24 @@ export const FALLBACK_CHAINS = {
 };
 
 // Karpathy's LLM Council default lineup, adapted to local/native surfaces where available.
-export const LLM_COUNCIL_MODELS = ["gpt51", "gemini3pro", "claude45", "grok4"];
+export const LLM_COUNCIL_MODELS = [
+  "claude",
+  "claude45",
+  "claude-haiku",
+  "gpt54",
+  "gpt54mini",
+  "gpt51",
+  "gpt4o",
+  "gpt4omini",
+  "gemini",
+  "gemini3pro",
+  "deepseek",
+  "minimax",
+  "venice",
+  "grok4",
+  "qwen",
+  "llama"
+];
 export const LLM_COUNCIL_CHAIRMAN = "gemini3pro";
 
 // API endpoints for direct access models

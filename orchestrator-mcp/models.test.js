@@ -17,6 +17,10 @@ test("llm council preset models are registered", () => {
   }
 
   assert.equal(LLM_COUNCIL_CHAIRMAN, "gemini3pro");
+  assert.ok(LLM_COUNCIL_MODELS.includes("gpt54"));
+  assert.ok(LLM_COUNCIL_MODELS.includes("claude"));
+  assert.ok(LLM_COUNCIL_MODELS.includes("venice"));
+  assert.ok(LLM_COUNCIL_MODELS.includes("minimax"));
 });
 
 test("native codex and claude surfaces are preserved", () => {

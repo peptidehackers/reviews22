@@ -2,7 +2,7 @@
  * Task Router - Auto-detect task type and select appropriate model(s)
  */
 
-import { FALLBACK_CHAINS, getModelFamily, isSpeedTier } from "./models.js";
+import { FALLBACK_CHAINS, LLM_COUNCIL_MODELS, getModelFamily, isSpeedTier } from "./models.js";
 
 // Task classification patterns
 const TASK_PATTERNS = {
@@ -126,7 +126,9 @@ export function shouldUseParallel(taskType) {
  */
 export function getConsensusModels(taskType) {
   const chain = FALLBACK_CHAINS[taskType] || FALLBACK_CHAINS["heavy-reasoning"];
-  // Use first 3 models in chain for consensus
+  if (["code-review", "security", "architecture"].includes(taskType)) {
+    return [...LLM_COUNCIL_MODELS];
+  }
   return chain.slice(0, 3);
 }
 
