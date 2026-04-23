@@ -73,13 +73,13 @@ const TASK_PATTERNS = {
 // Primary model selection by task type
 const PRIMARY_MODELS = {
   "fast-search": "minimax",
-  "code-review": "claude",
+  "code-review": "claude45",
   "edge-cases": "minimax",
-  "heavy-reasoning": "claude",
+  "heavy-reasoning": "claude45",
   "long-context": "moonshot",
-  "security": "claude",
-  "architecture": "claude",
-  "debug": "claude",
+  "security": "gpt54",
+  "architecture": "gpt54",
+  "debug": "claude45",
   "uncensored": "venice"
 };
 

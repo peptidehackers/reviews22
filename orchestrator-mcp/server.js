@@ -43,7 +43,9 @@ import {
   getModelCost,
   getModelFamily,
   MODEL_COSTS,
-  FALLBACK_CHAINS
+  FALLBACK_CHAINS,
+  LLM_COUNCIL_MODELS,
+  LLM_COUNCIL_CHAIRMAN
 } from "./models.js";
 import {
   searchMemories,
@@ -138,7 +140,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               type: "array",
               items: {
                 type: "string",
-                enum: ["minimax", "deepseek", "moonshot", "gemini", "gpt4o", "gpt4omini", "gpt54", "gpt54mini", "qwen", "llama", "venice", "chutes"],
+                enum: ["claude", "claude45", "claude-haiku", "minimax", "deepseek", "moonshot", "gemini", "gemini3pro", "gpt4o", "gpt4omini", "gpt51", "gpt54", "gpt54mini", "grok4", "qwen", "llama", "venice", "chutes"],
               },
               description: "Models to query (default: auto-selected based on task)",
             },
@@ -174,7 +176,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               type: "array",
               items: {
                 type: "string",
-                enum: ["minimax", "deepseek", "moonshot", "gemini", "gpt4o", "gpt4omini"],
+                enum: ["claude", "claude45", "claude-haiku", "minimax", "deepseek", "moonshot", "gemini", "gemini3pro", "gpt4o", "gpt4omini", "gpt51", "grok4"],
               },
               description: "Models to query (default: [minimax, deepseek, gpt4o])",
             },
@@ -244,7 +246,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           properties: {
             model: {
               type: "string",
-              enum: ["minimax", "deepseek", "moonshot", "gemini", "gpt4o", "gpt4omini", "gpt54", "gpt54mini", "qwen", "llama", "venice", "chutes"],
+              enum: ["claude", "claude45", "claude-haiku", "minimax", "deepseek", "moonshot", "gemini", "gemini3pro", "gpt4o", "gpt4omini", "gpt51", "gpt54", "gpt54mini", "grok4", "qwen", "llama", "venice", "chutes"],
               description: "Model to call",
             },
             prompt: {
@@ -366,7 +368,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               type: "array",
               items: {
                 type: "string",
-                enum: ["minimax", "deepseek", "gemini", "gpt4o", "moonshot", "venice"],
+                enum: ["claude", "claude45", "minimax", "deepseek", "gemini", "gemini3pro", "gpt4o", "gpt51", "moonshot", "grok4", "venice"],
               },
               description: "Models to use (default: [minimax, deepseek, gemini])",
             },
@@ -832,7 +834,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           return {
             content: [{
               type: "text",
-              text: `## Model Families\n\n**Claude-like (mechanics prompts):**\nclaude, deepseek, moonshot, minimax\n\n**GPT-like (principles prompts):**\ngpt4o, gpt4omini\n\n**Speed-tier (fast/cheap):**\nminimax, gemini, gpt4omini`
+              text: `## Model Families\n\n**Claude-like (mechanics prompts):**\nclaude, claude45, claude-haiku, deepseek, moonshot, minimax\n\n**GPT-like (principles prompts):**\ngpt4o, gpt4omini, gpt51, gpt54, gpt54mini, gemini, gemini3pro, grok4\n\n**Speed-tier (fast/cheap):**\nminimax, gemini, gpt4omini, gpt54mini\n\n**Frontier:**\nclaude45, gpt51, gpt54, gpt4o, gemini3pro, grok4\n\n**LLM Council Preset:**\nmodels: ${LLM_COUNCIL_MODELS.join(", ")}\nchairman: ${LLM_COUNCIL_CHAIRMAN}`
             }],
           };
 
@@ -1414,8 +1416,8 @@ ${Object.values(guides).join("\n\n---\n\n")}`
 ### Model Trust Levels
 | Level | Models |
 |-------|--------|
-| **HIGH** | claude, claude-haiku, gpt4o |
-| **MEDIUM** | deepseek, gemini, moonshot, minimax, qwen |
+| **HIGH** | claude, claude45, claude-haiku, gpt4o, gpt51, gpt54, gpt54mini |
+| **MEDIUM** | deepseek, gemini, gemini3pro, grok4, moonshot, minimax, qwen |
 | **LOW** | llama, venice, chutes |
 `;
 

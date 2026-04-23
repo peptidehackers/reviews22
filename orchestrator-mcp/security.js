@@ -14,14 +14,18 @@ export const TRUST_LEVELS = {
 export const MODEL_TRUST = {
   // High trust - well-established providers
   claude: TRUST_LEVELS.HIGH,
+  claude45: TRUST_LEVELS.HIGH,
   "claude-haiku": TRUST_LEVELS.HIGH,
   gpt4o: TRUST_LEVELS.HIGH,
+  gpt51: TRUST_LEVELS.HIGH,
   "gpt54": TRUST_LEVELS.HIGH,
   "gpt54mini": TRUST_LEVELS.HIGH,
 
   // Medium trust - reliable but secondary
   deepseek: TRUST_LEVELS.MEDIUM,
   gemini: TRUST_LEVELS.MEDIUM,
+  gemini3pro: TRUST_LEVELS.MEDIUM,
+  grok4: TRUST_LEVELS.MEDIUM,
   moonshot: TRUST_LEVELS.MEDIUM,
   minimax: TRUST_LEVELS.MEDIUM,
   qwen: TRUST_LEVELS.MEDIUM,

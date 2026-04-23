@@ -217,6 +217,51 @@ async function callCodex(model, prompt, system, maxTokens = 4096) {
 }
 
 /**
+ * Call Claude models via the native Claude Code CLI.
+ */
+async function callClaudeNative(model, prompt, system, _maxTokens = 4096) {
+  const { execSync } = await import("child_process");
+
+  const claudeModels = {
+    claude: "sonnet",
+    claude45: "claude-sonnet-4-5-20250929",
+    "claude-haiku": "haiku"
+  };
+
+  const claudeModel = claudeModels[model];
+  if (!claudeModel) {
+    throw new Error(`Unknown Claude model: ${model}`);
+  }
+
+  const fullPrompt = system ? `${system}\n\n${prompt}` : prompt;
+  const escapedPrompt = fullPrompt
+    .replace(/\\/g, "\\\\")
+    .replace(/"/g, '\\"')
+    .replace(/`/g, "\\`")
+    .replace(/\$/g, "\\$");
+
+  try {
+    const result = execSync(
+      `echo "${escapedPrompt}" | claude -p --model ${claudeModel} 2>/dev/null`,
+      {
+        encoding: "utf-8",
+        timeout: 120000,
+        maxBuffer: 10 * 1024 * 1024,
+        shell: "/bin/bash"
+      }
+    );
+
+    const text = result.trim();
+    const inputTokens = Math.ceil(fullPrompt.length / 4);
+    const outputTokens = Math.ceil(text.length / 4);
+
+    return { text, inputTokens, outputTokens };
+  } catch (error) {
+    throw new Error(`Claude CLI error: ${error.message}`);
+  }
+}
+
+/**
  * Call MiniMax via native Anthropic-compatible API (supports M2.7 with thinking)
  */
 async function callMiniMax(prompt, system, maxTokens = 4096) {
@@ -317,9 +362,9 @@ export async function callModel(model, prompt, system = null, maxTokens = 4096, 
         result = await callCodex(model, prompt, system, maxTokens);
         break;
 
-      case "anthropic":
-        // Claude is native, shouldn't be called through orchestrator
-        throw new Error("Claude should be called natively, not through orchestrator");
+      case "native-claude":
+        result = await callClaudeNative(model, prompt, system, maxTokens);
+        break;
 
       default:
         throw new Error(`Unknown provider for model: ${model}`);
@@ -372,11 +417,6 @@ export async function executeWithFallback(prompt, chain, options = {}) {
   });
 
   for (const model of chain) {
-    // Skip claude in fallback chains (it's the native model)
-    if (model === "claude") {
-      continue;
-    }
-
     for (let retry = 0; retry <= maxRetries; retry++) {
       try {
         const result = await callModel(model, prompt, system, maxTokens, { operation });
