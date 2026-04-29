@@ -1,0 +1,27 @@
+{
+  "apiUrl": "https://api.mem0.ai/v1",
+  "defaultUserId": "orchestrator",
+  "memoryModes": {
+    "none": "none",
+    "exact": "exact",
+    "semantic": "semantic",
+    "hybrid": "hybrid"
+  },
+  "defaults": {
+    "backendHint": "mem0",
+    "exactLimit": 4,
+    "semanticLimit": 6,
+    "hybridLimit": 8,
+    "queryMaxLength": 220,
+    "contentHintLength": 180,
+    "previewLength": 100,
+    "maxMemoryItems": 5,
+    "minSignalCount": 2,
+    "confidenceFloor": 0.35,
+    "maxIdentifiers": 8,
+    "maxFilesAffected": 8,
+    "maxTags": 8,
+    "maxVerificationItems": 4,
+    "maxEdgeCases": 5
+  }
+}

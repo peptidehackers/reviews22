@@ -1,0 +1,105 @@
+{
+  "families": {
+    "claude-like": {
+      "models": ["claude", "claude45", "claude-haiku", "deepseek", "moonshot", "minimax"],
+      "promptStyle": "mechanics",
+      "traits": ["instruction-following", "structured-output"]
+    },
+    "gpt-like": {
+      "models": ["gpt4o", "gpt4omini", "gpt51", "gpt54", "gpt54mini", "gemini", "gemini3pro", "grok4"],
+      "promptStyle": "principles",
+      "traits": ["explicit-reasoning", "principle-driven"]
+    },
+    "speed-tier": {
+      "models": ["minimax", "gemini", "gpt4omini", "gpt54mini"],
+      "promptStyle": "principles",
+      "traits": ["fast", "cheap", "utility"]
+    },
+    "frontier": {
+      "models": ["claude", "claude45", "gpt51", "gpt54", "gpt4o", "gemini3pro", "grok4"],
+      "promptStyle": "principles",
+      "traits": ["strong-reasoning", "high-trust"]
+    },
+    "uncensored": {
+      "models": ["venice", "chutes"],
+      "promptStyle": "mechanics",
+      "traits": ["raw-analysis", "lower-guardrails"]
+    }
+  },
+  "costs": {
+    "claude": { "input": 3.0, "output": 15.0, "provider": "native-claude" },
+    "claude45": { "input": 3.0, "output": 15.0, "provider": "native-claude" },
+    "claude-haiku": { "input": 0.25, "output": 1.25, "provider": "native-claude" },
+    "gpt4o": { "input": 2.5, "output": 10.0, "provider": "openrouter" },
+    "gpt4omini": { "input": 0.15, "output": 0.6, "provider": "openrouter" },
+    "gpt51": { "input": 2.5, "output": 10.0, "provider": "openrouter" },
+    "gpt54": { "input": 5.0, "output": 15.0, "provider": "codex" },
+    "gpt54mini": { "input": 1.0, "output": 3.0, "provider": "codex" },
+    "deepseek": { "input": 0.14, "output": 0.28, "provider": "direct" },
+    "minimax": { "input": 0.15, "output": 0.6, "provider": "mcp" },
+    "gemini": { "input": 0.075, "output": 0.3, "provider": "direct" },
+    "gemini3pro": { "input": 1.25, "output": 5.0, "provider": "openrouter" },
+    "grok4": { "input": 3.0, "output": 15.0, "provider": "openrouter" },
+    "moonshot": { "input": 0.5, "output": 1.5, "provider": "direct" },
+    "qwen": { "input": 0.2, "output": 0.8, "provider": "openrouter" },
+    "llama": { "input": 0.2, "output": 0.8, "provider": "openrouter" },
+    "venice": { "input": 0.1, "output": 0.4, "provider": "direct" },
+    "chutes": { "input": 0.14, "output": 0.28, "provider": "direct" }
+  },
+  "capabilities": {
+    "claude": { "reasoning": "high", "latency": "medium", "context": "high", "structuredOutputs": "high", "toolDiscipline": "high", "securityTrust": "high" },
+    "claude45": { "reasoning": "frontier", "latency": "medium", "context": "high", "structuredOutputs": "high", "toolDiscipline": "high", "securityTrust": "high" },
+    "claude-haiku": { "reasoning": "medium", "latency": "fast", "context": "medium", "structuredOutputs": "medium", "toolDiscipline": "high", "securityTrust": "high" },
+    "gpt4o": { "reasoning": "high", "latency": "medium", "context": "high", "structuredOutputs": "high", "toolDiscipline": "high", "securityTrust": "high" },
+    "gpt4omini": { "reasoning": "medium", "latency": "fast", "context": "medium", "structuredOutputs": "high", "toolDiscipline": "medium", "securityTrust": "high" },
+    "gpt51": { "reasoning": "frontier", "latency": "medium", "context": "high", "structuredOutputs": "high", "toolDiscipline": "high", "securityTrust": "high" },
+    "gpt54": { "reasoning": "frontier", "latency": "medium", "context": "high", "structuredOutputs": "high", "toolDiscipline": "high", "securityTrust": "high" },
+    "gpt54mini": { "reasoning": "high", "latency": "fast", "context": "medium", "structuredOutputs": "high", "toolDiscipline": "high", "securityTrust": "high" },
+    "deepseek": { "reasoning": "high", "latency": "medium", "context": "high", "structuredOutputs": "medium", "toolDiscipline": "medium", "securityTrust": "medium" },
+    "minimax": { "reasoning": "medium", "latency": "fast", "context": "medium", "structuredOutputs": "medium", "toolDiscipline": "medium", "securityTrust": "medium" },
+    "gemini": { "reasoning": "high", "latency": "fast", "context": "high", "structuredOutputs": "high", "toolDiscipline": "medium", "securityTrust": "medium" },
+    "gemini3pro": { "reasoning": "frontier", "latency": "medium", "context": "frontier", "structuredOutputs": "high", "toolDiscipline": "medium", "securityTrust": "medium" },
+    "grok4": { "reasoning": "high", "latency": "medium", "context": "high", "structuredOutputs": "medium", "toolDiscipline": "medium", "securityTrust": "medium" },
+    "moonshot": { "reasoning": "medium", "latency": "medium", "context": "frontier", "structuredOutputs": "medium", "toolDiscipline": "medium", "securityTrust": "medium" },
+    "qwen": { "reasoning": "medium", "latency": "medium", "context": "medium", "structuredOutputs": "medium", "toolDiscipline": "medium", "securityTrust": "medium" },
+    "llama": { "reasoning": "medium", "latency": "medium", "context": "medium", "structuredOutputs": "low", "toolDiscipline": "low", "securityTrust": "low" },
+    "venice": { "reasoning": "medium", "latency": "medium", "context": "medium", "structuredOutputs": "medium", "toolDiscipline": "medium", "securityTrust": "medium" },
+    "chutes": { "reasoning": "medium", "latency": "medium", "context": "medium", "structuredOutputs": "medium", "toolDiscipline": "medium", "securityTrust": "medium" }
+  },
+  "fallbackChains": {
+    "heavy-reasoning": ["gpt54", "claude45", "gpt51", "grok4", "gemini3pro", "deepseek", "moonshot", "gpt4o"],
+    "fast-search": ["minimax", "gemini", "gpt4omini"],
+    "code-review": ["gpt54", "claude45", "gpt51", "gemini3pro", "deepseek"],
+    "edge-cases": ["minimax", "deepseek", "claude45", "grok4"],
+    "long-context": ["moonshot", "gemini3pro", "claude45", "deepseek"],
+    "uncensored": ["venice", "deepseek", "claude45"],
+    "architecture": ["gpt54", "claude45", "gpt51", "gemini3pro", "deepseek", "gpt4o"],
+    "security": ["gpt54", "claude45", "gpt51", "deepseek", "minimax"],
+    "debug": ["gpt54", "claude45", "gpt51", "deepseek", "minimax", "gpt4o"]
+  },
+  "llmCouncil": {
+    "models": ["claude", "claude45", "claude-haiku", "gpt54", "gpt54mini", "gpt51", "gpt4o", "gpt4omini", "gemini", "gemini3pro", "deepseek", "minimax", "venice", "grok4", "qwen", "llama"],
+    "chairman": "gemini3pro"
+  },
+  "apiEndpoints": {
+    "gemini": { "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent", "envKey": "GEMINI_API_KEY" },
+    "deepseek": { "url": "https://api.deepseek.com/chat/completions", "envKey": "DEEPSEEK_API_KEY" },
+    "moonshot": { "url": "https://api.moonshot.ai/v1/chat/completions", "envKey": "MOONSHOT_API_KEY" },
+    "chutes": { "url": "https://llm.chutes.ai/v1/chat/completions", "envKey": "CHUTES_API_KEY" },
+    "venice": { "url": "https://api.venice.ai/api/v1/chat/completions", "envKey": "VENICE_API_KEY" }
+  },
+  "openrouterModels": {
+    "gemini": "google/gemini-2.5-pro-preview",
+    "gemini3pro": "google/gemini-2.5-pro-preview",
+    "deepseek": "deepseek/deepseek-r1",
+    "qwen": "qwen/qwen-2.5-coder-32b-instruct",
+    "llama": "meta-llama/llama-4-maverick",
+    "grok4": "x-ai/grok-4",
+    "gpt4o": "openai/gpt-4o",
+    "gpt4omini": "openai/gpt-4o-mini",
+    "gpt51": "openai/gpt-5.1",
+    "gpt54": "openai/gpt-5.4",
+    "claude": "anthropic/claude-sonnet-4",
+    "claude45": "anthropic/claude-opus-4.1"
+  }
+}

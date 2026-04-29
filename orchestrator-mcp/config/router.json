@@ -1,0 +1,38 @@
+{
+  "intentPatterns": {
+    "search": ["search|find|grep|locate|list|where is|which files?", "how many|count|enumerate"],
+    "review": ["review|audit|check code|analyze code|code quality|diff review", "pull request|pr review"],
+    "debug": ["debug|error|exception|crash|not working|broken", "stack trace|traceback|failed|bug|root cause"],
+    "security": ["security|vulnerability|injection|xss|csrf|auth bypass", "exploit|attack vector|penetration|hardening|idor|pii"],
+    "architecture": ["architecture|design pattern|system design|scalability", "microservice|monolith|database design|api design"],
+    "implement": ["implement|build|create|write|ship|deliver", "fix|change|update|modify|refactor"]
+  },
+  "riskPatterns": {
+    "high": ["security|auth|permission|production|incident|migration", "payment|billing|finance|pii|compliance|destructive"],
+    "medium": ["cross-file|project-wide|multiple files|shared|stateful", "refactor|architecture|performance|concurrency"]
+  },
+  "scopePatterns": {
+    "project": ["entire codebase|all files|project-wide|global search", "cross-file|multiple files|whole repo|system-wide"],
+    "single": ["single file|one file|one function|one class|this file"]
+  },
+  "depthPatterns": {
+    "deep": ["deep|thorough|comprehensive|carefully|root cause", "architecture|security|consensus"],
+    "fast": ["quick|fast|brief|lightweight|just list", "search|find|count"]
+  },
+  "memoryPatterns": {
+    "exact": ["stack trace|error code|exact|literal"],
+    "lightConsensus": ["compare|consensus|multi-model"]
+  },
+  "primaryModels": {
+    "fast-search": "minimax",
+    "code-review": "gpt54",
+    "edge-cases": "minimax",
+    "heavy-reasoning": "claude45",
+    "long-context": "moonshot",
+    "security": "gpt54",
+    "architecture": "gpt54",
+    "debug": "claude45",
+    "uncensored": "venice"
+  },
+  "parallelTasks": ["code-review", "security", "architecture"]
+}

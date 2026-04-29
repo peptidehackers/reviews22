@@ -1,0 +1,46 @@
+{
+  "modelTrust": {
+    "claude": "high",
+    "claude45": "high",
+    "claude-haiku": "high",
+    "gpt4o": "high",
+    "gpt51": "high",
+    "gpt54": "high",
+    "gpt54mini": "high",
+    "deepseek": "medium",
+    "gemini": "medium",
+    "gemini3pro": "medium",
+    "grok4": "medium",
+    "moonshot": "medium",
+    "minimax": "medium",
+    "qwen": "medium",
+    "venice": "medium",
+    "chutes": "medium",
+    "llama": "low"
+  },
+  "operationTypes": {
+    "read": "read",
+    "analyze": "analyze",
+    "write": "write",
+    "execute": "execute",
+    "destructive": "destructive"
+  },
+  "dangerousPatterns": {
+    "command_injection": ["`[^`]+`", "\\$\\([^)]+\\)", ";\\s*(rm|sudo|chmod|chown|dd|mkfs)", "\\|\\s*(sh|bash|zsh|exec)"],
+    "path_traversal": ["\\.\\./", "\\/etc\\/(passwd|shadow|sudoers)", "~\\/\\.(ssh|gnupg|aws)"],
+    "secrets_exposure": ["api[_-]?key\\s*[=:]", "password\\s*[=:]", "secret\\s*[=:]", "token\\s*[=:]", "credential"],
+    "destructive_sql": ["drop\\s+(table|database)", "truncate\\s+table", "delete\\s+from\\s+\\w+\\s*;", "update\\s+\\w+\\s+set\\s+.*\\s*;"]
+  },
+  "autoDenyPatterns": ["rm\\s+-rf\\s+[\\/~]", "sudo\\s+rm", "chmod\\s+777", ">\\s*\\/dev\\/sd[a-z]", "mkfs", "dd\\s+if.*of=\\/dev", ":\\(\\)\\{ :\\|:& \\};:"],
+  "analysisHints": ["analy[sz]e|review|audit|inspect|explain|why does|root cause", "stack trace|traceback|error message|logs?", "code snippet|source code|diff|pull request"],
+  "resourceSensitivePatterns": ["prod|production|customer|billing|payment|pii|secret"],
+  "destructiveIntentPatterns": ["delete|drop|truncate|wipe|destroy|remove"],
+  "literalModePatterns": ["```|function\\s+\\w+|const\\s+\\w+|class\\s+\\w+|SELECT\\s+.+FROM"],
+  "trustRequirements": {
+    "destructive": "high",
+    "write": "medium",
+    "execute": "medium",
+    "analyze": "low",
+    "read": "low"
+  }
+}

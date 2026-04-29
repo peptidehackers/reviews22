@@ -1,0 +1,94 @@
+{
+  "$schema": "./schema/reasoning-loop.schema.json",
+  "$comment": "Configuration for RDT-inspired iterative reasoning loop",
+
+  "loopConfig": {
+    "defaultMaxLoops": 8,
+    "defaultMinLoops": 2,
+    "actThreshold": 0.95,
+    "convergenceThreshold": 0.05,
+    "minConfidenceForHalt": 0.7,
+    "stateDecay": 0.85,
+    "inputInjection": 0.3,
+    "iterationTimeout": 60000,
+    "preludeTimeout": 30000,
+    "codaTimeout": 45000,
+    "maxStateSize": 50000,
+    "maxIterationHistory": 20,
+    "maxClaims": 100,
+    "maxRisks": 50,
+    "maxBlockers": 20,
+    "maxRetries": 2,
+    "retryDelay": 1000
+  },
+
+  "depthTiers": {
+    "shallow": ["minimax", "gpt4omini", "claude-haiku"],
+    "mid": ["gemini", "deepseek", "gpt4o"],
+    "deep": ["claude", "claude45", "gpt51", "gpt54"]
+  },
+
+  "loopPrompts": {
+    "0": "You are analyzing a problem. Identify the core issues and initial hypotheses.",
+    "1": "You are refining analysis. Challenge assumptions and explore edge cases.",
+    "2": "You are deepening understanding. Look for hidden dependencies and root causes.",
+    "3": "You are stress-testing conclusions. What could go wrong? What are we missing?",
+    "4": "You are synthesizing insights. Integrate findings into a coherent solution.",
+    "5": "You are validating the solution. Check for completeness and correctness.",
+    "default": "You are in deep reasoning mode. Build on prior analysis with fresh perspective."
+  },
+
+  "taskComplexitySignals": {
+    "increase": [
+      "architecture",
+      "design",
+      "security audit",
+      "comprehensive",
+      "thorough",
+      "multi-file",
+      "codebase",
+      "system-wide",
+      "all modules",
+      "root cause",
+      "deep dive",
+      "investigate fully"
+    ],
+    "decrease": [
+      "quick",
+      "fast",
+      "brief",
+      "simple",
+      "single",
+      "format",
+      "lint",
+      "typo",
+      "rename"
+    ]
+  },
+
+  "confidenceSignals": {
+    "positive": [
+      "definitely",
+      "certainly",
+      "clearly",
+      "obviously",
+      "the solution is",
+      "the fix is",
+      "the answer is",
+      "verified",
+      "confirmed",
+      "tested"
+    ],
+    "negative": [
+      "might",
+      "maybe",
+      "possibly",
+      "perhaps",
+      "unclear",
+      "uncertain",
+      "not sure",
+      "more investigation",
+      "needs more"
+    ]
+  }
+}
