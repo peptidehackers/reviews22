@@ -32,7 +32,15 @@ import {
   onProgress
 } from "./fallback.js";
 import { getDenialHistory } from "./permissions.js";
-import { compressContext, getSessionSummary, COMPRESSION_LAYERS } from "./session.js";
+import {
+  compressContext,
+  getSessionSummary,
+  COMPRESSION_LAYERS,
+  logRoutingDecision,
+  logMemoryEvent,
+  logSecurityEvent,
+  logConsensusRun
+} from "./session.js";
 import { buildConsensus, quickVote } from "./consensus.js";
 import { getUsageSummary, formatCostReport, estimateCost, resetUsage, getRecentUsage } from "./cost.js";
 import { getPrompt, buildPrompt, listPromptTemplates, getPromptComparison } from "./prompts.js";
@@ -41,6 +49,7 @@ import {
   listTaskTypes,
   getFallbackChain,
   getModelCost,
+  getModelCapabilities,
   getModelFamily,
   MODEL_COSTS,
   FALLBACK_CHAINS,
@@ -52,8 +61,9 @@ import {
   addMemory,
   getMemories,
   formatMemoriesForContext,
-  buildFixMemory,
-  isMem0Available
+  isMem0Available,
+  selectMemoryPolicy,
+  buildMemoryWritePayload
 } from "./mem0.js";
 import {
   isAxonAvailable,
@@ -72,6 +82,13 @@ import {
   formatAuditForAnalysis,
   AUDIT_CATEGORIES
 } from "./squirrel.js";
+import {
+  executeReasoningLoop,
+  quickReason,
+  deepReason,
+  formatReasoningResult,
+  LOOP_CONFIG
+} from "./reasoning-loop.js";
 
 const server = new Server(
   {
@@ -121,6 +138,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               type: "boolean",
               description: "Include Mem0 recall for relevant context (default: false)",
             },
+            operation: {
+              type: "string",
+              enum: ["read", "analyze", "write", "execute", "destructive"],
+              description: "Optional operation override for action-aware security handling",
+            },
           },
           required: ["task"],
         },
@@ -156,6 +178,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             use_memory: {
               type: "boolean",
               description: "Include Mem0 recall for relevant context (default: false)",
+            },
+            operation: {
+              type: "string",
+              enum: ["read", "analyze", "write", "execute", "destructive"],
+              description: "Optional operation override for action-aware security handling",
             },
           },
           required: ["prompt"],
@@ -206,7 +233,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "route_explain",
         description:
-          "Explain how a task would be routed without executing it. Shows task classification, selected model, fallback chain, and reasoning.",
+          "Explain how a task would be routed without executing it. Shows multi-axis routing details, selected model, fallback chain, memory mode, consensus mode, and reasoning.",
         inputSchema: {
           type: "object",
           properties: {
@@ -246,7 +273,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           properties: {
             model: {
               type: "string",
-              enum: ["claude", "claude45", "claude-haiku", "minimax", "deepseek", "moonshot", "gemini", "gemini3pro", "gpt4o", "gpt4omini", "gpt51", "gpt54", "gpt54mini", "grok4", "qwen", "llama", "venice", "chutes"],
+                enum: ["claude", "claude45", "claude-haiku", "minimax", "deepseek", "moonshot", "gemini", "gemini3pro", "gpt4o", "gpt4omini", "gpt51", "gpt54", "gpt54mini", "grok4", "qwen", "llama", "venice", "chutes"],
               description: "Model to call",
             },
             prompt: {
@@ -261,6 +288,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               type: "number",
               description: "Maximum tokens in response (default: 4096)",
             },
+            operation: {
+              type: "string",
+              enum: ["read", "analyze", "write", "execute", "destructive"],
+              description: "Optional operation override for action-aware security handling",
+            },
           },
           required: ["model", "prompt"],
         },
@@ -268,7 +300,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "get_prompt",
         description:
-          "Get the appropriate prompt template for a task type and model family. Supports dual-prompt (mechanics vs principles).",
+          "Get the layered prompt template for a task type and model family. Includes identity, operating policy, task lens, style adapter, and output contract.",
         inputSchema: {
           type: "object",
           properties: {
@@ -539,6 +571,20 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               type: "string",
               description: "Model to validate against (affects trust level)",
             },
+            operation: {
+              type: "string",
+              enum: ["read", "analyze", "write", "execute", "destructive"],
+              description: "Operation context for validation (default: execute)",
+            },
+            literal_mode: {
+              type: "boolean",
+              description: "If true, treat dangerous-looking strings as code/data literals instead of executable intent",
+            },
+            resource: {
+              type: "string",
+              enum: ["standard", "sensitive"],
+              description: "Resource sensitivity context for validation",
+            },
           },
           required: ["prompt"],
         },
@@ -576,6 +622,42 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           properties: {},
         },
       },
+      {
+        name: "reasoning_loop",
+        description:
+          "Execute iterative reasoning with RDT-inspired architecture (Recurrent-Depth Transformer). Loops through analysis with ACT-based convergence detection, LTI-stable state management, and depth-based model selection. Use for complex problems requiring deep multi-iteration analysis.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            task: {
+              type: "string",
+              description: "The problem or task to reason about deeply",
+            },
+            max_loops: {
+              type: "number",
+              description: "Maximum reasoning iterations (default: auto-inferred from task complexity, range 2-8)",
+            },
+            mode: {
+              type: "string",
+              enum: ["quick", "balanced", "deep"],
+              description: "Reasoning depth: quick (3 loops), balanced (auto), deep (8 loops with consensus)",
+            },
+            use_consensus: {
+              type: "boolean",
+              description: "Use multi-model consensus on alternating iterations (default: false)",
+            },
+            early_halt: {
+              type: "boolean",
+              description: "Enable ACT-based early halting when confidence converges (default: true)",
+            },
+            system: {
+              type: "string",
+              description: "Optional system prompt for all iterations",
+            },
+          },
+          required: ["task"],
+        },
+      },
     ],
   };
 });
@@ -587,15 +669,35 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     // === ORCHESTRATE ===
     if (name === "orchestrate") {
-      const { task, content, task_type, system, max_tokens = 4096, use_memory = false } = args;
+      const { task, content, task_type, system, max_tokens = 4096, use_memory = false, operation } = args;
 
       // Route the task
       const route = routeTask(task_type || task);
+      logRoutingDecision(route, { source: "orchestrate" });
 
       // Optional: Mem0 recall
+      const resolvedOperation = operation || (route.actionMode === "execute" ? "execute" : "analyze");
+      const securityContext = {
+        literalMode: Boolean(content),
+        resource: route.risk === "high" ? "sensitive" : "standard"
+      };
+
+      const memoryPolicy = selectMemoryPolicy(task, {
+        route,
+        explicit: use_memory,
+        content
+      });
+      logMemoryEvent({
+        source: "orchestrate",
+        enabled: memoryPolicy.enabled,
+        mode: memoryPolicy.mode,
+        rationale: memoryPolicy.rationale,
+        query: memoryPolicy.query ? memoryPolicy.query.substring(0, 180) : ""
+      });
+
       let memoryContext = "";
-      if (use_memory && isMem0Available()) {
-        const memoryResult = await searchMemories(task, { limit: 5 });
+      if (memoryPolicy.enabled && isMem0Available()) {
+        const memoryResult = await searchMemories(memoryPolicy.query, { limit: memoryPolicy.limit });
         if (memoryResult.success && memoryResult.memories.length > 0) {
           memoryContext = `\n\n## Relevant Memories\n${formatMemoriesForContext(memoryResult.memories)}\n`;
         }
@@ -622,7 +724,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const result = await executeWithFallback(
         finalPrompt,
         route.fallbackChain,
-        { system, maxTokens: max_tokens }
+        { system, maxTokens: max_tokens, operation: resolvedOperation, securityContext }
       );
 
       if (!result.success) {
@@ -638,14 +740,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       return {
         content: [{
           type: "text",
-          text: `## Orchestrator Result\n\n**Task Type:** ${route.taskType}\n**Model Used:** ${result.model}\n**Fallback Chain:** ${route.fallbackChain.join(" → ")}\n${result.failedModels.length > 0 ? `**Failed Models:** ${result.failedModels.join(", ")}\n` : ""}\n---\n\n${result.result}`
+          text: `## Orchestrator Result\n\n**Task Type:** ${route.taskType}\n**Intent:** ${route.intent}\n**Risk:** ${route.risk}\n**Scope:** ${route.scope}\n**Memory Mode:** ${route.memoryMode}\n**Memory Policy:** ${memoryPolicy.rationale}\n**Consensus Mode:** ${route.consensusMode}\n**Security Operation:** ${resolvedOperation}\n**Model Used:** ${result.model}\n**Fallback Chain:** ${route.fallbackChain.join(" → ")}\n${result.failedModels.length > 0 ? `**Failed Models:** ${result.failedModels.join(", ")}\n` : ""}\n---\n\n${result.result}`
         }],
       };
     }
 
     // === CONSENSUS ===
     if (name === "consensus") {
-      const { prompt, models, task_type, system, use_memory = false } = args;
+      const { prompt, models, task_type, system, use_memory = false, operation } = args;
 
       // Determine which models to use
       let targetModels = models;
@@ -665,18 +767,42 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       // Optional: Mem0 recall
+      const route = routeTask(task_type || prompt);
+      logRoutingDecision(route, { source: "consensus" });
+      const resolvedOperation = operation || "analyze";
+      const securityContext = {
+        literalMode: /```|stack trace|traceback/i.test(prompt),
+        resource: route.risk === "high" ? "sensitive" : "standard"
+      };
+      const memoryPolicy = selectMemoryPolicy(prompt, {
+        route,
+        explicit: use_memory
+      });
+      logMemoryEvent({
+        source: "consensus",
+        enabled: memoryPolicy.enabled,
+        mode: memoryPolicy.mode,
+        rationale: memoryPolicy.rationale,
+        query: memoryPolicy.query ? memoryPolicy.query.substring(0, 180) : ""
+      });
+
       let memorySection = "";
       let finalPrompt = prompt;
-      if (use_memory && isMem0Available()) {
-        const memoryResult = await searchMemories(prompt, { limit: 5 });
+      if (memoryPolicy.enabled && isMem0Available()) {
+        const memoryResult = await searchMemories(memoryPolicy.query, { limit: memoryPolicy.limit });
         if (memoryResult.success && memoryResult.memories.length > 0) {
           const memoryContext = formatMemoriesForContext(memoryResult.memories);
-          memorySection = `## Mem0 Recall\n\n${memoryContext}\n\n---\n\n`;
+          memorySection = `## Mem0 Recall\n\n**Policy:** ${memoryPolicy.rationale}\n\n${memoryContext}\n\n---\n\n`;
           finalPrompt = `${memoryContext}\n\n${prompt}`;
         }
       }
 
-      const result = await buildConsensus(finalPrompt, targetModels, { system });
+      logConsensusRun({
+        source: "consensus",
+        requestedModels: targetModels,
+        operation: resolvedOperation
+      });
+      const result = await buildConsensus(finalPrompt, targetModels, { system, operation: resolvedOperation, securityContext });
 
       if (!result.success) {
         return {
@@ -697,7 +823,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       return {
         content: [{
           type: "text",
-          text: `${memorySection}## Consensus Analysis\n\n${result.summary}\n\n---\n\n## Individual Responses\n\n${responsesText}`
+          text: `${memorySection}## Consensus Analysis\n\n**Analysis Mode:** ${result.analysisMode}\n**Structured Responses:** ${result.structuredResponses}/${result.modelCount}\n\n${result.summary}\n\n---\n\n## Individual Responses\n\n${responsesText}`
         }],
       };
     }
@@ -769,11 +895,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     if (name === "route_explain") {
       const { task } = args;
       const explanation = explainRouting(task);
+      logRoutingDecision(routeTask(task), { source: "route_explain" });
 
       return {
         content: [{
           type: "text",
-          text: `## Routing Analysis\n\n**Task:** ${explanation.task}\n**Classification:** ${explanation.classification}\n**Selected Model:** ${explanation.selectedModel}\n**Prompt Style:** ${explanation.promptStyle}\n**Parallel Execution:** ${explanation.parallelExecution}\n\n**Fallback Chain:**\n${explanation.fallbackChain.map((m, i) => `${i + 1}. ${m}`).join("\n")}\n\n**Consensus Models:** ${explanation.consensusModels.join(", ")}\n\n**Reasoning:** ${explanation.reasoning}`
+          text: `## Routing Analysis\n\n**Task:** ${explanation.task}\n**Classification:** ${explanation.classification}\n**Intent:** ${explanation.intent}\n**Risk:** ${explanation.risk}\n**Scope:** ${explanation.scope}\n**Depth:** ${explanation.speedDepth}\n**Action Mode:** ${explanation.actionMode}\n**Memory Mode:** ${explanation.memoryMode}\n**Consensus Mode:** ${explanation.consensusMode}\n**Selected Model:** ${explanation.selectedModel}\n**Prompt Style:** ${explanation.promptStyle}\n**Parallel Execution:** ${explanation.parallelExecution}\n**Route Version:** ${explanation.routeVersion}\n\n**Fallback Chain:**\n${explanation.fallbackChain.map((m, i) => `${i + 1}. ${m}`).join("\n")}\n\n**Consensus Models:** ${explanation.consensusModels.join(", ")}\n\n**Reasoning:** ${explanation.reasoning}`
         }],
       };
     }
@@ -782,20 +909,21 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     if (name === "model_info") {
       const { model, list_type = "models" } = args;
 
-      if (model) {
-        const cost = getModelCost(model);
-        const family = getModelFamily(model);
-        const chains = Object.entries(FALLBACK_CHAINS)
-          .filter(([_, chain]) => chain.includes(model))
-          .map(([type]) => type);
+        if (model) {
+          const cost = getModelCost(model);
+          const family = getModelFamily(model);
+          const capabilities = getModelCapabilities(model);
+          const chains = Object.entries(FALLBACK_CHAINS)
+            .filter(([_, chain]) => chain.includes(model))
+            .map(([type]) => type);
 
-        return {
-          content: [{
-            type: "text",
-            text: `## Model: ${model}\n\n**Family:** ${family.family}\n**Prompt Style:** ${family.promptStyle}\n**Traits:** ${family.traits.join(", ")}\n\n**Cost (per 1M tokens):**\n- Input: $${cost.input}\n- Output: $${cost.output}\n\n**Provider:** ${cost.provider}\n\n**Used in Fallback Chains:** ${chains.join(", ") || "none"}`
-          }],
-        };
-      }
+          return {
+            content: [{
+              type: "text",
+              text: `## Model: ${model}\n\n**Family:** ${family.family}\n**Prompt Style:** ${family.promptStyle}\n**Traits:** ${family.traits.join(", ")}\n\n**Capabilities:**\n- Reasoning: ${capabilities.reasoning}\n- Latency: ${capabilities.latency}\n- Context: ${capabilities.context}\n- Structured Outputs: ${capabilities.structuredOutputs}\n- Tool Discipline: ${capabilities.toolDiscipline}\n- Security Trust: ${capabilities.securityTrust}\n\n**Cost (per 1M tokens):**\n- Input: $${cost.input}\n- Output: $${cost.output}\n\n**Provider:** ${cost.provider}\n\n**Used in Fallback Chains:** ${chains.join(", ") || "none"}`
+            }],
+          };
+        }
 
       switch (list_type) {
         case "models":
@@ -848,9 +976,25 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     // === CALL MODEL ===
     if (name === "call_model") {
-      const { model, prompt, system, max_tokens = 4096 } = args;
+      const { model, prompt, system, max_tokens = 4096, operation = "execute" } = args;
+      logSecurityEvent({
+        source: "call_model_request",
+        model,
+        operation,
+        literalMode: /```|stack trace|traceback/i.test(prompt),
+        resource: /prod|production|billing|payment|secret/i.test(prompt) ? "sensitive" : "standard",
+        valid: true
+      });
 
-      const result = await executeSingle(model, prompt, { system, maxTokens: max_tokens });
+      const result = await executeSingle(model, prompt, {
+        system,
+        maxTokens: max_tokens,
+        operation,
+        securityContext: {
+          literalMode: /```|stack trace|traceback/i.test(prompt),
+          resource: /prod|production|billing|payment|secret/i.test(prompt) ? "sensitive" : "standard"
+        }
+      });
 
       if (!result.success) {
         return {
@@ -886,10 +1030,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return {
           content: [{
             type: "text",
-            text: `## Prompt Comparison: ${task_type}\n\n### Mechanics (Claude-like) - ${comparison.mechanicsLength} chars\n\n\`\`\`\n${comparison.mechanics}\n\`\`\`\n\n### Principles (GPT-like) - ${comparison.principlesLength} chars\n\n\`\`\`\n${comparison.principles}\n\`\`\``
-          }],
-        };
-      }
+              text: `## Prompt Comparison: ${task_type}\n\n**Layers:** ${comparison.layerNames.join(" → ")}\n\n### Mechanics (Claude-like) - ${comparison.mechanicsLength} chars\n\n\`\`\`\n${comparison.mechanics}\n\`\`\`\n\n### Principles (GPT-like) - ${comparison.principlesLength} chars\n\n\`\`\`\n${comparison.principles}\n\`\`\``
+            }],
+          };
+        }
 
       const prompt = getPrompt(task_type, model, context || "");
 
@@ -951,22 +1095,25 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
 
-      // Build structured content if metadata provided
-      let memoryContent = content;
-      if (bug_type || root_cause || fix_approach || files_affected) {
-        memoryContent = buildFixMemory({
-          bugType: bug_type || "unknown",
-          rootCause: root_cause || content,
-          fixApproach: fix_approach || "see content",
-          filesAffected: files_affected || [],
-          edgeCases: [],
-          modelFindings: null,
-          consensus: null
-        });
-      }
+      const payload = buildMemoryWritePayload({
+        content,
+        bugType: bug_type,
+        taskType: "manual-store",
+        rootCause: root_cause,
+        fixApproach: fix_approach,
+        filesAffected: files_affected || [],
+        force: true,
+        source: "orchestrator"
+      });
+      logMemoryEvent({
+        source: "mem0_store",
+        enabled: payload.shouldStore,
+        mode: payload.metadata.memory_mode || "semantic",
+        rationale: payload.shouldStore ? "structured writeback allowed" : "writeback rejected by signal threshold"
+      });
 
-      const result = await addMemory(memoryContent, {
-        metadata: { bug_type, source: "orchestrator" }
+      const result = await addMemory(payload.content, {
+        metadata: payload.metadata
       });
 
       if (!result.success) {
@@ -982,7 +1129,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       return {
         content: [{
           type: "text",
-          text: `## Memory Stored\n\n**Preview:** ${result.content}\n\n✓ Successfully stored to Mem0`
+          text: `## Memory Stored\n\n**Preview:** ${result.content}\n**Metadata:** ${JSON.stringify(payload.metadata, null, 2)}\n\n✓ Successfully stored to Mem0`
         }],
       };
     }
@@ -999,14 +1146,28 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       } = args;
 
       const sections = [];
+      const multifixRoute = routeTask(bug_description);
+      logRoutingDecision(multifixRoute, { source: "multifix_analyze" });
+      const multifixMemoryPolicy = selectMemoryPolicy(bug_description, {
+        route: { ...multifixRoute, memoryMode: "hybrid" },
+        explicit: !skip_memory,
+        content: code_context
+      });
+      logMemoryEvent({
+        source: "multifix_analyze",
+        enabled: multifixMemoryPolicy.enabled,
+        mode: multifixMemoryPolicy.mode,
+        rationale: multifixMemoryPolicy.rationale,
+        query: multifixMemoryPolicy.query ? multifixMemoryPolicy.query.substring(0, 180) : ""
+      });
 
       // Step 1: Mem0 Recall
       let memoryContext = "";
-      if (!skip_memory && isMem0Available()) {
-        const memoryResult = await searchMemories(bug_description, { limit: 5 });
+      if (multifixMemoryPolicy.enabled && isMem0Available()) {
+        const memoryResult = await searchMemories(multifixMemoryPolicy.query, { limit: multifixMemoryPolicy.limit });
         if (memoryResult.success && memoryResult.memories.length > 0) {
           memoryContext = formatMemoriesForContext(memoryResult.memories);
-          sections.push(`## Mem0 Recall\n\n${memoryContext}`);
+          sections.push(`## Mem0 Recall\n\n**Policy:** ${multifixMemoryPolicy.rationale}\n\n${memoryContext}`);
         } else {
           sections.push("## Mem0 Recall\n\nNo relevant memories found.");
         }
@@ -1055,8 +1216,18 @@ Provide:
 4. Risks of the fix`;
 
       // Step 4: Multi-model consensus
+      logConsensusRun({
+        source: "multifix_analyze",
+        requestedModels: models,
+        operation: "analyze"
+      });
       const consensusResult = await buildConsensus(analysisPrompt, models, {
-        system: "You are an expert debugger. Be specific and actionable."
+        system: "You are an expert debugger. Be specific and actionable.",
+        operation: "analyze",
+        securityContext: {
+          literalMode: Boolean(code_context),
+          resource: multifixRoute.risk === "high" ? "sensitive" : "standard"
+        }
       });
 
       if (!consensusResult.success) {
@@ -1449,21 +1620,39 @@ ${Object.values(guides).join("\n\n---\n\n")}`
 
     // === VALIDATE PROMPT ===
     if (name === "validate_prompt") {
-      const { prompt, model = "unknown" } = args;
+      const { prompt, model = "unknown", operation = "execute", literal_mode = false, resource = "standard" } = args;
 
-      const result = validatePrompt(prompt, { model });
+      const result = validatePrompt(prompt, {
+        model,
+        operation,
+        literalMode: literal_mode,
+        resource
+      });
+      logSecurityEvent({
+        source: "validate_prompt",
+        model,
+        operation: result.actionContext.operation,
+        literalMode: result.actionContext.literalMode,
+        resource: result.actionContext.resource,
+        valid: result.valid,
+        criticalCount: result.criticalCount,
+        warningCount: result.warningCount
+      });
 
       let output = `## Prompt Validation
 
 **Valid:** ${result.valid ? "✅ Yes" : "❌ No"}
 **Trust Level:** ${result.trustLevel}
+**Operation:** ${result.actionContext.operation}
+**Literal Mode:** ${result.actionContext.literalMode ? "yes" : "no"}
+**Resource:** ${result.actionContext.resource}
 **Reason:** ${result.reason}
 `;
 
       if (result.issues && result.issues.length > 0) {
         output += `\n### Issues Found (${result.issues.length})\n`;
         for (const issue of result.issues) {
-          const icon = issue.severity === "critical" ? "🔴" : "🟡";
+          const icon = issue.severity === "critical" ? "🔴" : issue.severity === "warning" ? "🟡" : "🔵";
           output += `${icon} **${issue.category}**: \`${issue.pattern}\` (${issue.severity})\n`;
         }
       }
@@ -1506,6 +1695,16 @@ ${Object.values(guides).join("\n\n---\n\n")}`
         modelUsage += `| ${model} | ${count} |\n`;
       }
 
+      const recentRouting = session.recentRouting?.length
+        ? session.recentRouting.map((route) => `- ${route.intent}/${route.taskType} → ${route.primaryModel} (${route.risk}, ${route.scope})`).join("\n")
+        : "- none";
+      const recentMemory = session.recentMemory?.length
+        ? session.recentMemory.map((event) => `- ${event.source}: ${event.mode} (${event.enabled ? "enabled" : "disabled"})`).join("\n")
+        : "- none";
+      const recentSecurity = session.recentSecurity?.length
+        ? session.recentSecurity.map((event) => `- ${event.source}: ${event.operation} (${event.valid ? "valid" : "blocked"})`).join("\n")
+        : "- none";
+
       const output = `## Session Info
 
 **Session ID:** ${session.id}
@@ -1519,15 +1718,75 @@ ${Object.values(guides).join("\n\n---\n\n")}`
 | Output Tokens | ${session.totalTokens.output} |
 | Errors | ${session.errors} |
 | Denials | ${session.denials} |
+| Consensus Runs | ${session.consensusRuns} |
 | Transcript Entries | ${session.transcriptLength} |
 
 ### Model Usage
 | Model | Calls |
 |-------|-------|
-${modelUsage || "| (none) | 0 |"}`;
+${modelUsage || "| (none) | 0 |"}
+
+### Recent Routing
+${recentRouting}
+
+### Recent Memory Events
+${recentMemory}
+
+### Recent Security Events
+${recentSecurity}`;
 
       return {
         content: [{ type: "text", text: output }],
+      };
+    }
+
+    // === REASONING LOOP ===
+    if (name === "reasoning_loop") {
+      const {
+        task,
+        max_loops,
+        mode = "balanced",
+        use_consensus = false,
+        early_halt = true,
+        system
+      } = args;
+
+      let result;
+
+      if (mode === "quick") {
+        result = await quickReason(task, {
+          system,
+          earlyHalt: early_halt
+        });
+      } else if (mode === "deep") {
+        result = await deepReason(task, {
+          system,
+          earlyHalt: early_halt
+        });
+      } else {
+        result = await executeReasoningLoop(task, {
+          maxLoops: max_loops,
+          useConsensus: use_consensus,
+          earlyHalt: early_halt,
+          system
+        });
+      }
+
+      if (!result.success) {
+        return {
+          content: [{
+            type: "text",
+            text: `## Reasoning Loop Failed\n\n${result.error || "Unknown error"}`
+          }],
+          isError: true,
+        };
+      }
+
+      return {
+        content: [{
+          type: "text",
+          text: formatReasoningResult(result)
+        }],
       };
     }
 

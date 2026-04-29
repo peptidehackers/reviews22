@@ -1,151 +1,186 @@
-# Zelle Webhook Integration Guide
+# Zelle Payment Verification via AgentMail
 
-Receive real-time notifications when payment events occur. Webhooks push events to your endpoint instead of requiring polling.
+Automatic Zelle payment verification by parsing payment notification emails forwarded through AgentMail.
 
 ## How It Works
 
 ```mermaid
 sequenceDiagram
-    participant Z as Zelle
-    participant Y as Your Server
+    participant B as Bank (Chase, etc.)
+    participant I as Your Inbox
+    participant A as AgentMail
+    participant W as Webhook
+    participant D as Database
 
-    Z->>Y: POST /webhooks/zelle
-    Y->>Y: Verify signature
-    alt Invalid
-        Y-->>Z: 401 Unauthorized
-    else Valid
-        Y->>Y: Check idempotency
-        Y-->>Z: 200 OK
-        Y->>Y: Process async
-    end
+    B->>I: Zelle notification email
+    I->>A: Forward to AgentMail inbox
+    A->>W: POST /api/webhooks/agentmail-zelle
+    W->>W: Verify Svix signature
+    W->>W: Parse email (amount, payer, txn_id, memo)
+    W->>D: Match to pending order
+    W->>D: Confirm payment
+    W-->>A: 200 OK
 ```
 
-## Prerequisites
+**Important**: Zelle doesn't send emails directly. Your bank (Chase, Bank of America, etc.) sends Zelle payment notifications on behalf of Zelle.
 
-- Zelle account with webhook access enabled
-- HTTPS endpoint (TLS 1.2+)
-- Webhook signing secret from dashboard
+## Endpoint
 
-## Endpoint Setup
-
-Your endpoint must:
-- Accept `POST` requests at a stable path (e.g., `/webhooks/zelle/v1/events`)
-- Verify the `Zelle-Signature` header before processing
-- Return `200 OK` within 5 seconds
-- Process heavy work asynchronously
-
-## Event Types
-
-| Event | Description |
-|-------|-------------|
-| `transaction.settled` | Payment completed |
-| `transaction.failed` | Payment failed |
-| `refund.created` | Refund initiated |
-| `chargeback.opened` | Dispute opened |
-
-### Example: transaction.settled
-
-```json
-{
-  "event_id": "evt_01H7ZZX9P4Y7",
-  "event_type": "transaction.settled",
-  "created_at": "2026-03-31T23:10:12Z",
-  "data": {
-    "transaction": {
-      "id": "tx_5f3d7a1f-9c2d-4d3f-bf3a-4f8a95d3f9b2",
-      "merchant_reference": "order_12345",
-      "amount": { "currency": "USD", "value": "150.00" },
-      "status": "SETTLED"
-    }
-  }
-}
+```
+POST /api/webhooks/agentmail-zelle
 ```
 
-### Example: transaction.failed
+Located at: `server/api/webhooks/agentmail-zelle.post.ts`
 
-```json
-{
-  "event_id": "evt_01H7ZZX9P4Y8",
-  "event_type": "transaction.failed",
-  "data": {
-    "transaction": {
-      "id": "tx_1d4f8e2b-b9fd-4e1c-8f6b-1ad8f9f4e8a7",
-      "status": "FAILED",
-      "failure_reason": { "code": "FUNDS_NOT_AVAILABLE", "message": "Funds unavailable" }
-    }
-  }
-}
+## Configuration
+
+### Environment Variables
+
+```bash
+# AgentMail webhook secret (Svix format)
+AGENTMAIL_ZELLE_WEBHOOK_SECRET=whsec_...
+
+# Fallbacks (shared secrets)
+AGENTMAIL_WEBHOOK_SECRET=whsec_...
+AGENTMAIL_WEBHOOK_SECRET_2=whsec_...
 ```
+
+### AgentMail Setup
+
+1. Create an inbox in AgentMail for Zelle notifications
+2. Configure email forwarding from your Zelle-registered email to the AgentMail inbox
+3. Set webhook URL: `https://www.peptidehackers.com/api/webhooks/agentmail-zelle`
+4. Copy the Svix webhook secret to your environment
 
 ## Signature Verification
 
-Zelle signs payloads as: `HMAC_SHA256(secret, timestamp + "." + body)`
+AgentMail uses Svix signatures (not a custom "Zelle-Signature"):
 
-### Node.js
-
-```js
-import crypto from 'crypto';
-import express from 'express';
-
-const SECRET = process.env.ZELLE_WEBHOOK_SECRET;
-
-app.post('/webhooks/zelle', express.raw({ type: 'application/json' }), (req, res) => {
-  const sig = req.get('Zelle-Signature') || '';
-  const ts = req.get('Zelle-Delivery-Timestamp') || '';
-
-  const expected = crypto
-    .createHmac('sha256', SECRET)
-    .update(`${ts}.${req.body.toString()}`)
-    .digest('hex');
-
-  if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) {
-    return res.status(401).json({ error: 'invalid_signature' });
-  }
-
-  const payload = JSON.parse(req.body);
-  // TODO: enqueue for async processing
-
-  res.status(200).json({ ok: true });
-});
+```
+Headers:
+- svix-id: msg_xxx
+- svix-timestamp: 1234567890
+- svix-signature: v1,base64signature
 ```
 
-### Python (HMAC snippet)
+Verification: `HMAC-SHA256(secret, "{svix-id}.{svix-timestamp}.{body}")`
 
-```python
-import hmac, hashlib
+## Email Parsing
 
-def verify(secret: bytes, timestamp: str, body: bytes, signature: str) -> bool:
-    expected = hmac.new(secret, f"{timestamp}.{body.decode()}".encode(), hashlib.sha256).hexdigest()
-    return hmac.compare_digest(signature, expected)
-```
+The webhook validates and parses Zelle notification emails:
 
-## Error Handling
+### Sender Validation
 
-- Return `200`/`204` once event is validated and queued
-- Return `401` for invalid signature
-- Return `400` for malformed payload
-- We retry up to 5 times over 30 minutes with exponential backoff
+Only accepts emails from:
+- `no.reply.alerts@chase.com`
 
-Deduplicate by `event_id` to ensure idempotent processing.
+### Subject Patterns
+
+Must contain one of:
+- "zelle" (required for bank domain emails)
+- "received"
+- "sent you"
+- "deposited"
+
+### Chase Email Format
+
+Chase sends Zelle notifications with an HTML table:
+
+| Field | Example |
+|-------|---------|
+| Header | `SAMANTHA REMENY sent you money` |
+| Amount | `$200.00` |
+| Sent on | `Apr 02, 2026` |
+| Transaction number | `28666646024` |
+| Memo | `2961` |
+
+### Data Extraction
+
+Parses from email:
+- **Amount**: From HTML table or `"you received $150.00"` pattern
+- **Payer name**: From `"{NAME} sent you money"` header
+- **Transaction ID**: From "Transaction number" table row
+- **Memo/Note**: From "Memo" table row (used for order matching)
+
+## Order Matching
+
+A payment matches an order if **amount matches** AND **any one** of these is true:
+
+| Criteria | Example |
+|----------|---------|
+| First name matches | Payer "SAMANTHA REMENY" matches order billing name "Samantha Jones" |
+| Last name matches | Payer "JOHN SMITH" matches order billing name "Jane Smith" |
+| Memo contains order ID | Memo "2961" matches order "PH-2961" |
+| Order ID contains memo | Order "PH-2961" contains memo "2961" |
+
+### Match Requirements
+
+1. Payment method must be `zelle`
+2. Order status must be `pending` / `awaiting_payment`
+3. Amount >= order total (accepts overpayment)
+4. One of the criteria above must match
+
+### No Match
+
+If none of the criteria match, the payment requires manual review.
+
+## Response Codes
+
+| Status | Meaning |
+|--------|---------|
+| `200 { ok: true }` | Processed successfully |
+| `200 { ok: true, skipped: true }` | Not a Zelle payment email |
+| `200 { ok: true, status: "duplicate" }` | Already processed |
+| `200 { ok: true, status: "needs_review" }` | Needs manual matching |
+| `401` | Invalid Svix signature |
+| `400` | Malformed request |
+
+## Audit Trail
+
+All events logged to `agentmail_events` table:
+- `event_id` - AgentMail event ID
+- `from_address` - Sender email
+- `subject` - Email subject
+- `processing_status` - received/skipped/processed/needs_review
+- `matched_order_id` - Matched order (if any)
+- `parsed_data` - Extracted payment data (JSON)
+
+## Admin Notifications
+
+Telegram alerts sent for:
+- Payment verified successfully
+- Manual review required (no match)
+- Parse failed
+- Possible duplicate payment
 
 ## Testing
 
-1. Use ngrok or Cloudflare Tunnel for local development
-2. Send test events from Zelle dashboard
-3. Check delivery logs for failures
+1. **Local tunnel**: Use ngrok to expose local endpoint
+2. **AgentMail test events**: Send test webhook from AgentMail dashboard
+3. **Forward test email**: Send a real Zelle notification to your AgentMail inbox
 
 ## Common Issues
 
 **Signature verification fails**
-- Body parser consumed raw body before verification
-- Wrong secret (prod vs staging)
-- Timestamp in wrong format (seconds vs milliseconds)
+- Check `AGENTMAIL_ZELLE_WEBHOOK_SECRET` is set correctly
+- Verify it starts with `whsec_`
 
-**Duplicate processing**
-- Missing `event_id` deduplication
-- Non-idempotent handlers (use upsert, not insert)
+**Emails being skipped ("Not from Zelle")**
+- Only `no.reply.alerts@chase.com` is accepted
+- Check `agentmail_events` table for raw from address
 
-**Events not arriving**
-- Endpoint blocked by firewall/WAF
-- Not returning 200 within timeout
-- Event type not subscribed in dashboard
+**Emails not matching orders**
+- Ensure customer includes order ID in Zelle memo
+- Check order status is `pending` or `awaiting_payment`
+- Verify order payment method is `zelle`
+
+**Parse failures**
+- Chase may have changed their HTML format
+- Check `agentmail_events` table for raw HTML payload
+- Update `parseChaseZelleEmail` in `agentmailProcessor.ts` if format changed
+
+## Related Files
+
+- `server/api/webhooks/agentmail-zelle.post.ts` - Webhook handler
+- `server/utils/agentmailProcessor.ts` - Shared processing logic
+- `server/lib/payment/pipeline.ts` - Payment confirmation

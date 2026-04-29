@@ -13,7 +13,7 @@ Act as a multi-model workflow architect and execution engine.
 | **MiniMax** | Edge cases, race conditions | MEDIUM |
 | **Gemini** | Code review | MEDIUM |
 | **Moonshot** | Long context (128K) | MEDIUM |
-| **Venice** | Uncensored analysis | LOW |
+| **Venice** | Think outside the box | HIGH |
 | **Chutes** | DeepSeek V3 fallback | LOW |
 | **OpenRouter** | Last resort fallback | LOW |
 
@@ -483,7 +483,91 @@ Behavioral guidelines to reduce common LLM coding mistakes.
 
 ---
 
-## 15. Skills
+## 15. Reasoning Loop (RDT Architecture)
+
+**Recurrent-Depth Transformer inspired iterative reasoning.**
+
+Based on [OpenMythos](https://github.com/kyegomez/OpenMythos) - theoretical reconstruction of looped transformer architecture.
+
+### Core Concept
+
+```
+Input → [Prelude] → [Recurrent Block × T loops] → [Coda] → Output
+
+State update per loop:
+h_{t+1} = decay × h_t + injection × e + model_response
+
+Where:
+  h_t = accumulated reasoning state
+  e = original input (re-injected every iteration)
+  decay < 1 = LTI stability (prevents drift)
+```
+
+### Key Properties
+
+| Property | Description |
+|----------|-------------|
+| **LTI Stability** | Spectral radius < 1 by construction; state cannot explode |
+| **Input Injection** | Original problem re-injected each loop; prevents semantic drift |
+| **ACT Halting** | Adaptive Computation Time; halt when confidence converges |
+| **Depth Extrapolation** | More loops = deeper reasoning; train on N, test on N+k |
+| **Loop Index Embedding** | Different behavior per iteration via loop-aware prompts |
+
+### Depth-Based Model Selection
+
+| Loop Depth | Models (fast → strong) |
+|------------|------------------------|
+| 1-2 (shallow) | minimax, gpt4omini, claude-haiku |
+| 3-5 (mid) | gemini, deepseek, gpt4o |
+| 6+ (deep) | claude, claude45, gpt51, gpt54 |
+
+### Loop Prompts
+
+| Loop | Focus |
+|------|-------|
+| 0 | Identify core issues, initial hypotheses |
+| 1 | Challenge assumptions, explore edge cases |
+| 2 | Find hidden dependencies, root causes |
+| 3 | Stress-test conclusions, what could go wrong |
+| 4 | Synthesize insights into coherent solution |
+| 5+ | Validate completeness, deep refinement |
+
+### Halting Conditions (ACT)
+
+Halt early when ANY condition met:
+- Cumulative confidence ≥ 0.95
+- Confidence change < 0.05 over 3 iterations
+- All models agree on recommended action
+
+### Usage
+
+```
+reasoning_loop(task, {
+  mode: "quick" | "balanced" | "deep",
+  max_loops: 2-8 (auto-inferred),
+  use_consensus: true | false,
+  early_halt: true | false
+})
+```
+
+| Mode | Loops | Consensus |
+|------|-------|-----------|
+| quick | 3 | No |
+| balanced | auto | No |
+| deep | 8 | Yes (alternating) |
+
+### Auto-Trigger
+
+Use reasoning loop for:
+- Architecture decisions
+- Root cause analysis
+- Multi-step debugging
+- Security audits requiring depth
+- Problems where initial analysis is insufficient
+
+---
+
+## 16. Skills
 
 | Skill | Description |
 |-------|-------------|
@@ -496,7 +580,7 @@ Behavioral guidelines to reduce common LLM coding mistakes.
 
 ---
 
-## 16. Code Intelligence
+## 17. Code Intelligence
 
 | Tool | Analysis | Best For |
 |------|----------|----------|
@@ -508,7 +592,7 @@ Behavioral guidelines to reduce common LLM coding mistakes.
 
 ---
 
-## 17. Hard Rules
+## 18. Hard Rules
 
 - **Claude decides** final judgment
 - **Secondary models challenge** assumptions
@@ -522,7 +606,7 @@ Behavioral guidelines to reduce common LLM coding mistakes.
 
 ---
 
-## 18. Dead Code Detection
+## 19. Dead Code Detection
 
 | Confidence | Score | Action |
 |------------|-------|--------|
@@ -536,7 +620,7 @@ Behavioral guidelines to reduce common LLM coding mistakes.
 
 ---
 
-## 19. Runtime Dependencies
+## 20. Runtime Dependencies
 
 **Required for system to function. Not optional config.**
 

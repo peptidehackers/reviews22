@@ -19,9 +19,12 @@ let progressHandlers = [];
 export const PROGRESS_EVENTS = {
   START: "start",
   ROUTING: "routing",
+  MEMORY: "memory",
+  SECURITY: "security",
   MODEL_CALL: "model_call",
   MODEL_RESPONSE: "model_response",
   CONSENSUS: "consensus",
+  REASONING_LOOP: "reasoning_loop",  // RDT-inspired iterative reasoning
   ERROR: "error",
   COMPLETE: "complete"
 };
@@ -55,7 +58,11 @@ export function createSession(options = {}) {
       totalTokens: { input: 0, output: 0 },
       totalCost: 0,
       modelUsage: {},
-      errors: 0
+      errors: 0,
+      routingDecisions: [],
+      memoryEvents: [],
+      securityEvents: [],
+      consensusRuns: 0
     },
     context: {
       compressed: false,
@@ -145,6 +152,61 @@ export function logModelCall(model, prompt, response, usage) {
   session.metrics.modelUsage[model] = (session.metrics.modelUsage[model] || 0) + 1;
 
   saveSession();
+}
+
+function pushMetricEvent(metricKey, entry, maxEntries = 100) {
+  const session = getSession();
+  if (!Array.isArray(session.metrics[metricKey])) {
+    session.metrics[metricKey] = [];
+  }
+
+  session.metrics[metricKey].push({
+    timestamp: new Date().toISOString(),
+    ...entry
+  });
+
+  if (session.metrics[metricKey].length > maxEntries) {
+    session.metrics[metricKey] = session.metrics[metricKey].slice(-maxEntries);
+  }
+
+  saveSession();
+}
+
+export function logRoutingDecision(route, context = {}) {
+  pushMetricEvent("routingDecisions", {
+    taskType: route.taskType,
+    intent: route.intent,
+    risk: route.risk,
+    scope: route.scope,
+    memoryMode: route.memoryMode,
+    consensusMode: route.consensusMode,
+    primaryModel: route.primaryModel,
+    context
+  });
+
+  emitProgress(PROGRESS_EVENTS.ROUTING, {
+    taskType: route.taskType,
+    intent: route.intent,
+    risk: route.risk,
+    primaryModel: route.primaryModel
+  });
+}
+
+export function logMemoryEvent(event) {
+  pushMetricEvent("memoryEvents", event);
+  emitProgress(PROGRESS_EVENTS.MEMORY, event);
+}
+
+export function logSecurityEvent(event) {
+  pushMetricEvent("securityEvents", event);
+  emitProgress(PROGRESS_EVENTS.SECURITY, event);
+}
+
+export function logConsensusRun(event = {}) {
+  const session = getSession();
+  session.metrics.consensusRuns = (session.metrics.consensusRuns || 0) + 1;
+  saveSession();
+  emitProgress(PROGRESS_EVENTS.CONSENSUS, { phase: "tracked", ...event });
 }
 
 /**
@@ -392,6 +454,10 @@ export function getSessionSummary() {
     totalTokens: session.metrics.totalTokens,
     modelUsage: session.metrics.modelUsage,
     errors: session.metrics.errors,
+    consensusRuns: session.metrics.consensusRuns || 0,
+    recentRouting: (session.metrics.routingDecisions || []).slice(-5),
+    recentMemory: (session.metrics.memoryEvents || []).slice(-5),
+    recentSecurity: (session.metrics.securityEvents || []).slice(-5),
     denials: session.denials.length,
     transcriptLength: session.transcript.length
   };

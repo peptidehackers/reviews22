@@ -23,14 +23,14 @@ test("llm council preset models are registered", () => {
   assert.ok(LLM_COUNCIL_MODELS.includes("minimax"));
 });
 
-test("native codex and claude surfaces are preserved", () => {
+test("native models stay native for codex and claude surfaces", () => {
   assert.equal(getModelCost("gpt54").provider, "codex");
   assert.equal(getModelCost("gpt54mini").provider, "codex");
   assert.equal(getModelCost("claude").provider, "native-claude");
   assert.equal(getModelCost("claude45").provider, "native-claude");
 });
 
-test("heavy reasoning fallback leads with council frontier models", () => {
+test("heavy reasoning fallback includes llm council frontier options", () => {
   const chain = getFallbackChain("heavy-reasoning");
 
   assert.deepEqual(chain.slice(0, 5), ["gpt54", "claude45", "gpt51", "grok4", "gemini3pro"]);

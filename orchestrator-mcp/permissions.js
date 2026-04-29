@@ -33,6 +33,14 @@ const OPERATION_CATEGORIES = {
   ]
 };
 
+const OPERATION_ALIASES = {
+  read: "read_only",
+  analyze: "read_only",
+  write: "write_ops",
+  execute: "execution",
+  destructive: "destructive"
+};
+
 // Auto-approve patterns (safe operations)
 const AUTO_APPROVE_PATTERNS = [
   /^(search|find|list|get|read|query)\s/i,
@@ -88,12 +96,18 @@ export function classifyOperation(prompt) {
   return "unknown";
 }
 
+export function normalizeOperationCategory(operation) {
+  if (!operation) return null;
+  const normalized = String(operation).toLowerCase();
+  return OPERATION_ALIASES[normalized] || normalized;
+}
+
 /**
  * Check if operation is allowed in current mode
  */
 export function checkPermission(prompt, options = {}) {
   const { model = "unknown", operation = null } = options;
-  const category = operation || classifyOperation(prompt);
+  const category = normalizeOperationCategory(operation) || classifyOperation(prompt);
 
   const result = {
     allowed: false,

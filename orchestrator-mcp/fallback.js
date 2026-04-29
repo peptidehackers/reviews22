@@ -217,7 +217,7 @@ async function callCodex(model, prompt, system, maxTokens = 4096) {
 }
 
 /**
- * Call Claude models via the native Claude Code CLI.
+ * Call Claude models via native Claude Code CLI (uses local subscription/auth).
  */
 async function callClaudeNative(model, prompt, system, _maxTokens = 4096) {
   const { execSync } = await import("child_process");
@@ -309,7 +309,7 @@ async function callMiniMax(prompt, system, maxTokens = 4096) {
  * Call any model by name (with security checks)
  */
 export async function callModel(model, prompt, system = null, maxTokens = 4096, options = {}) {
-  const { skipSecurity = false, operation = "execute" } = options;
+  const { skipSecurity = false, operation = "execute", securityContext = {} } = options;
   const cost = getModelCost(model);
 
   // Emit progress: starting model call
@@ -318,14 +318,14 @@ export async function callModel(model, prompt, system = null, maxTokens = 4096, 
   // Security checks (unless bypassed)
   if (!skipSecurity) {
     // 1. Permission check
-    const permission = checkPermission(prompt, { model, operation });
+    const permission = checkPermission(prompt, { model, operation, ...securityContext });
     if (!permission.allowed) {
       logDenial(prompt, model, permission.reason);
       throw new Error(`Permission denied: ${permission.reason}`);
     }
 
     // 2. Trust and validation check
-    const trustCheck = enforceTrust(model, prompt, operation);
+    const trustCheck = enforceTrust(model, prompt, operation, securityContext);
     if (!trustCheck.allowed) {
       logDenial(prompt, model, trustCheck.reason);
       throw new Error(`Trust check failed: ${trustCheck.reason}`);
@@ -407,7 +407,7 @@ export async function callModelUnsafe(model, prompt, system = null, maxTokens = 
  * Execute with automatic fallback through chain
  */
 export async function executeWithFallback(prompt, chain, options = {}) {
-  const { system = null, maxTokens = 4096, maxRetries = 1, operation = "execute" } = options;
+  const { system = null, maxTokens = 4096, maxRetries = 1, operation = "execute", securityContext = {} } = options;
   const errors = [];
 
   emitProgress(PROGRESS_EVENTS.START, {
@@ -419,7 +419,7 @@ export async function executeWithFallback(prompt, chain, options = {}) {
   for (const model of chain) {
     for (let retry = 0; retry <= maxRetries; retry++) {
       try {
-        const result = await callModel(model, prompt, system, maxTokens, { operation });
+        const result = await callModel(model, prompt, system, maxTokens, { operation, securityContext });
 
         emitProgress(PROGRESS_EVENTS.COMPLETE, {
           type: "fallback_chain",
@@ -486,7 +486,7 @@ function isTransientError(error) {
  * Execute task on specific model
  */
 export async function executeSingle(model, prompt, options = {}) {
-  const { system = null, maxTokens = 4096, operation = "execute" } = options;
+  const { system = null, maxTokens = 4096, operation = "execute", securityContext = {} } = options;
 
   emitProgress(PROGRESS_EVENTS.START, {
     type: "single_model",
@@ -495,7 +495,7 @@ export async function executeSingle(model, prompt, options = {}) {
   });
 
   try {
-    const result = await callModel(model, prompt, system, maxTokens, { operation });
+    const result = await callModel(model, prompt, system, maxTokens, { operation, securityContext });
 
     emitProgress(PROGRESS_EVENTS.COMPLETE, {
       type: "single_model",

@@ -2,11 +2,18 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { LLM_COUNCIL_MODELS } from "./models.js";
-import { routeTask } from "./router.js";
+import { explainRouting, routeTask } from "./router.js";
 
-test("security routing uses the full council roster for consensus", () => {
-  const route = routeTask("Investigate auth bypass vulnerability across multiple services");
+test("strong consensus routes use the full council roster", () => {
+  const route = routeTask("Investigate a security incident across the system and compare architectural tradeoffs");
 
-  assert.equal(route.taskType, "security");
+  assert.equal(route.consensusMode, "strong");
   assert.deepEqual(route.consensusModels, LLM_COUNCIL_MODELS);
+});
+
+test("routing explanation exposes the expanded council", () => {
+  const explanation = explainRouting("Investigate a security incident across the system and compare architectural tradeoffs");
+
+  assert.equal(explanation.consensusMode, "strong");
+  assert.deepEqual(explanation.consensusModels, LLM_COUNCIL_MODELS);
 });
