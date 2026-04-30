@@ -9,7 +9,10 @@
   },
   "scripts": {
     "start": "node server.js",
-    "test": "node --test"
+    "test": "node --test && node scripts/build-showcase.mjs --check",
+    "showcase:build": "node scripts/build-showcase.mjs",
+    "showcase:check": "node scripts/build-showcase.mjs --check",
+    "showcase:serve": "node scripts/serve-showcase.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",

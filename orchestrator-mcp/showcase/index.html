@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MCP Showcase • orchestrator-mcp + minimax-mcp</title>
+    <meta
+      name="description"
+      content="Source-synced showcase for orchestrator-mcp and minimax-mcp with a live router laboratory, tool atlas, and model overview."
+    />
+    <link rel="stylesheet" href="./site.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow" id="hero-eyebrow"></p>
+          <h1 id="hero-title"></h1>
+          <p class="hero-summary" id="hero-summary"></p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="#router-lab">Open router lab</a>
+            <a class="button button-secondary" href="#tool-atlas">Browse tool atlas</a>
+          </div>
+          <ul class="principles" id="hero-principles"></ul>
+        </div>
+        <aside class="hero-panel glass">
+          <h2>Why this integration matters</h2>
+          <p>
+            It turns server code into a polished HTML artifact that is safe to demo,
+            easy to print, and hard to let drift.
+          </p>
+          <div class="stats-grid" id="stats-grid"></div>
+        </aside>
+      </header>
+
+      <main>
+        <section class="section">
+          <div class="section-heading">
+            <p class="eyebrow">Design principles</p>
+            <h2>Huashu-style lessons applied to a real MCP workspace</h2>
+          </div>
+          <div class="card-grid" id="narrative-grid"></div>
+        </section>
+
+        <section class="section section-split" id="router-lab">
+          <div class="section-heading split-heading">
+            <div>
+              <p class="eyebrow">Live router lab</p>
+              <h2>Type a task and watch the orchestrator classify it</h2>
+            </div>
+            <p class="muted">
+              The router lab runs entirely in-browser from the exported config so it stays
+              faithful to the same heuristics used by the server.
+            </p>
+          </div>
+          <div class="router-layout">
+            <div class="glass router-input-card">
+              <label class="sr-only" for="task-input">Task prompt</label>
+              <textarea id="task-input" rows="7"></textarea>
+              <div class="chip-row" id="example-chips"></div>
+            </div>
+            <div class="glass router-output-card" id="router-output"></div>
+          </div>
+        </section>
+
+        <section class="section" id="scenarios">
+          <div class="section-heading">
+            <p class="eyebrow">Curated scenarios</p>
+            <h2>Four grounded examples pulled through the actual router</h2>
+          </div>
+          <div class="scenario-grid" id="scenario-grid"></div>
+        </section>
+
+        <section class="section" id="tool-atlas">
+          <div class="section-heading">
+            <p class="eyebrow">Tool atlas</p>
+            <h2>Every surfaced capability, grouped by operator intent</h2>
+          </div>
+          <div class="spotlight-grid" id="tool-spotlights"></div>
+          <div class="tool-groups" id="tool-groups"></div>
+        </section>
+
+        <section class="section section-split" id="quickstart">
+          <div class="section-heading split-heading">
+            <div>
+              <p class="eyebrow">Operator recipes</p>
+              <h2>Copy-pasteable tool payloads for the highest-value flows</h2>
+            </div>
+            <p class="muted">
+              These are intentionally grounded in the live tool schemas and focused on the
+              moments that matter most: preflight, orchestration, consensus, and MiniMax contrast.
+            </p>
+          </div>
+          <div class="recipe-grid" id="recipe-grid"></div>
+        </section>
+
+        <section class="section" id="models">
+          <div class="section-heading">
+            <p class="eyebrow">Model stack</p>
+            <h2>Costs, capability tiers, fallback stories, and LLM council posture</h2>
+          </div>
+          <div class="leader-grid" id="leader-grid"></div>
+          <div class="model-layout">
+            <div class="glass model-table-wrap">
+              <table class="model-table">
+                <thead>
+                  <tr>
+                    <th>Model</th>
+                    <th>Family</th>
+                    <th>Input</th>
+                    <th>Output</th>
+                    <th>Reasoning</th>
+                    <th>Latency</th>
+                    <th>Context</th>
+                  </tr>
+                </thead>
+                <tbody id="model-table-body"></tbody>
+              </table>
+            </div>
+            <div class="glass fallback-panel">
+              <h3>Fallback chains</h3>
+              <div id="fallback-stories"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="integration-notes">
+          <div class="section-heading">
+            <p class="eyebrow">Workspace impact</p>
+            <h2>What was actually integrated</h2>
+          </div>
+          <div class="card-grid" id="integration-grid"></div>
+        </section>
+      </main>
+
+      <footer class="footer glass">
+        <div>
+          <strong>Built from code, not vibes.</strong>
+          <p>
+            `site-data.json` is generated from the MCP servers and config files. If those change,
+            tests force this showcase to keep up.
+          </p>
+        </div>
+        <div class="footer-meta">
+          <span id="footer-digest"></span>
+          <span>Static HTML • no runtime dependencies</span>
+        </div>
+      </footer>
+    </div>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
