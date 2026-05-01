@@ -7,6 +7,7 @@ import { trackUsage } from "./cost.js";
 import { checkPermission, getPermissionMode, PERMISSION_MODES } from "./permissions.js";
 import { validatePrompt, enforceTrust, checkRateLimit } from "./security.js";
 import { logModelCall, logDenial, logError, emitProgress, PROGRESS_EVENTS } from "./session.js";
+import { VENICE_DEFAULT_MODEL } from "./venice-api.js";
 
 // API keys from environment
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
@@ -90,7 +91,7 @@ async function callOpenAICompatible(url, apiKey, model, prompt, system, maxToken
   // Model-specific adjustments
   let modelId = model;
   if (model === "venice") {
-    modelId = "llama-3.3-70b";  // Venice's best uncensored model
+    modelId = VENICE_DEFAULT_MODEL;
   } else if (model === "chutes") {
     modelId = "deepseek-ai/DeepSeek-V3-0324";
   } else if (model === "deepseek") {
@@ -108,7 +109,9 @@ async function callOpenAICompatible(url, apiKey, model, prompt, system, maxToken
     body: JSON.stringify({
       model: modelId,
       messages,
-      max_tokens: maxTokens
+      ...(model === "venice"
+        ? { max_completion_tokens: maxTokens }
+        : { max_tokens: maxTokens })
     })
   });
 

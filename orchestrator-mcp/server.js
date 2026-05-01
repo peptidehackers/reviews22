@@ -1016,7 +1016,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     // === GET PROMPT ===
     if (name === "get_prompt") {
-      const { task_type, model = "claude", context, compare } = args;
+      const { task_type, model = "venice", context, compare } = args;
 
       if (compare) {
         const comparison = getPromptComparison(task_type);

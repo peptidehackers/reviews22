@@ -9,5 +9,5 @@ test("loadConfig reads policy files from config directory", () => {
 
   assert.ok(getConfigDir().endsWith("/orchestrator-mcp/config"));
   assert.equal(models.llmCouncil.chairman, "gemini3pro");
-  assert.equal(router.primaryModels["heavy-reasoning"], "claude45");
+  assert.equal(router.primaryModels["heavy-reasoning"], "venice");
 });

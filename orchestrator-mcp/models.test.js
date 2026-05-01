@@ -33,5 +33,5 @@ test("native models stay native for codex and claude surfaces", () => {
 test("heavy reasoning fallback includes llm council frontier options", () => {
   const chain = getFallbackChain("heavy-reasoning");
 
-  assert.deepEqual(chain.slice(0, 5), ["gpt54", "claude45", "gpt51", "grok4", "gemini3pro"]);
+  assert.deepEqual(chain.slice(0, 6), ["venice", "gpt54", "claude45", "gpt51", "grok4", "gemini3pro"]);
 });

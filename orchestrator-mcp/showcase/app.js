@@ -167,7 +167,7 @@ function routeTaskPreview(task) {
   const memoryMode = inferMemoryMode(task, intent, scope, config);
   const consensusMode = inferConsensusMode(task, intent, risk, config);
   const taskType = deriveTaskType(task, intent, risk, scope);
-  const primaryModel = config.primaryModels[taskType] || "claude45";
+  const primaryModel = config.primaryModels[taskType] || "venice";
   return {
     intent,
     risk,

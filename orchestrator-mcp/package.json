@@ -9,7 +9,12 @@
   },
   "scripts": {
     "start": "node server.js",
+    "start:doppler": "doppler run -- node server.js",
     "test": "node --test && node scripts/build-showcase.mjs --check",
+    "venice:check": "node scripts/venice-runtime-check.mjs",
+    "venice:models": "node scripts/venice-models.mjs",
+    "venice:ask": "node scripts/venice-ask.mjs",
+    "venice:smoke": "node scripts/venice-runtime-check.mjs --smoke",
     "showcase:build": "node scripts/build-showcase.mjs",
     "showcase:check": "node scripts/build-showcase.mjs --check",
     "showcase:serve": "node scripts/serve-showcase.mjs"

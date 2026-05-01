@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "sourceDigest": "4125b86d6633e923cd72f9976070a174f2bf8a5b79242e58e032e23532a53657",
+  "sourceDigest": "c6d45d67fcbe6528d58e412e26a7597e580289eec0207b052da323cd203ce18f",
   "hero": {
     "eyebrow": "Huashu-inspired integration for real MCP systems",
     "title": "A source-synced design surface for orchestrator-mcp and minimax-mcp",
@@ -166,7 +166,7 @@
         "fast-search": "minimax",
         "code-review": "gpt54",
         "edge-cases": "minimax",
-        "heavy-reasoning": "claude45",
+        "heavy-reasoning": "venice",
         "long-context": "moonshot",
         "security": "gpt54",
         "architecture": "gpt54",
@@ -183,7 +183,7 @@
       "fast-search": "minimax",
       "code-review": "gpt54",
       "edge-cases": "minimax",
-      "heavy-reasoning": "claude45",
+      "heavy-reasoning": "venice",
       "long-context": "moonshot",
       "security": "gpt54",
       "architecture": "gpt54",
@@ -306,8 +306,8 @@
         "taskType": "debug",
         "primaryModel": "claude45",
         "fallbackChain": [
-          "gpt54",
           "claude45",
+          "gpt54",
           "gpt51",
           "deepseek",
           "minimax",
@@ -340,8 +340,8 @@
         "taskType": "debug",
         "primaryModel": "claude45",
         "fallbackChain": [
-          "gpt54",
           "claude45",
+          "gpt54",
           "gpt51",
           "deepseek",
           "minimax",
@@ -1869,8 +1869,9 @@
       },
       {
         "taskType": "heavy-reasoning",
-        "primary": "gpt54",
+        "primary": "venice",
         "backups": [
+          "gpt54",
           "claude45",
           "gpt51",
           "grok4",
@@ -1880,6 +1881,7 @@
           "gpt4o"
         ],
         "chain": [
+          "venice",
           "gpt54",
           "claude45",
           "gpt51",

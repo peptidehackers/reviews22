@@ -67,7 +67,7 @@
     "chutes": { "reasoning": "medium", "latency": "medium", "context": "medium", "structuredOutputs": "medium", "toolDiscipline": "medium", "securityTrust": "medium" }
   },
   "fallbackChains": {
-    "heavy-reasoning": ["gpt54", "claude45", "gpt51", "grok4", "gemini3pro", "deepseek", "moonshot", "gpt4o"],
+    "heavy-reasoning": ["venice", "gpt54", "claude45", "gpt51", "grok4", "gemini3pro", "deepseek", "moonshot", "gpt4o"],
     "fast-search": ["minimax", "gemini", "gpt4omini"],
     "code-review": ["gpt54", "claude45", "gpt51", "gemini3pro", "deepseek"],
     "edge-cases": ["minimax", "deepseek", "claude45", "grok4"],

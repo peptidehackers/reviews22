@@ -163,7 +163,7 @@ export function selectPrimary(taskType, profile = null) {
     return PRIMARY_MODELS[taskType] || "gpt54";
   }
 
-  return PRIMARY_MODELS[taskType] || "claude";
+  return PRIMARY_MODELS[taskType] || "venice";
 }
 
 function diversifyConsensusModels(chain) {
@@ -205,6 +205,14 @@ export function shouldUseParallel(taskType, profile = null) {
   }
 
   return PARALLEL_TASKS.includes(taskType);
+}
+
+function prioritizePrimaryModel(chain = [], primaryModel) {
+  if (!primaryModel) {
+    return [...chain];
+  }
+
+  return [primaryModel, ...chain.filter((model) => model !== primaryModel)];
 }
 
 function generateRoutingReasoning(profile, route) {
@@ -254,7 +262,10 @@ export function routeTask(task) {
 
   const taskType = deriveTaskType(profile);
   const primaryModel = selectPrimary(taskType, profile);
-  const fallbackChain = FALLBACK_CHAINS[taskType] || FALLBACK_CHAINS["heavy-reasoning"];
+  const fallbackChain = prioritizePrimaryModel(
+    FALLBACK_CHAINS[taskType] || FALLBACK_CHAINS["heavy-reasoning"],
+    primaryModel
+  );
   const consensusModels = getConsensusModels(taskType, profile);
   const useParallel = shouldUseParallel(taskType, profile);
 

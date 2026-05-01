@@ -13,6 +13,14 @@ test("routeTask infers fast search profile", () => {
   assert.equal(route.actionMode, "answer");
 });
 
+test("routeTask uses venice as the default heavy reasoning base model", () => {
+  const route = routeTask("Build a new feature that coordinates multiple services");
+
+  assert.equal(route.taskType, "heavy-reasoning");
+  assert.equal(route.primaryModel, "venice");
+  assert.equal(route.fallbackChain[0], "venice");
+});
+
 test("routeTask escalates security investigations", () => {
   const route = routeTask("Investigate auth bypass vulnerability across multiple services");
 

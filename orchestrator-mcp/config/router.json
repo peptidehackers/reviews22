@@ -27,7 +27,7 @@
     "fast-search": "minimax",
     "code-review": "gpt54",
     "edge-cases": "minimax",
-    "heavy-reasoning": "claude45",
+    "heavy-reasoning": "venice",
     "long-context": "moonshot",
     "security": "gpt54",
     "architecture": "gpt54",
