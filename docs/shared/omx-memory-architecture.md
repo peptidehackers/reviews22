@@ -26,7 +26,7 @@ Configurable defaults:
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    LAYER 1: ENTRY                            │
-│  ./omx → self-heal → npx oh-my-codex                        │
+│  ./omx → self-heal → installed oh-my-codex CLI              │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -69,7 +69,7 @@ Configurable defaults:
     │               ├── verify-runtime.sh
     │               └── verify-codex-runtime.sh
     │
-    └── npx oh-my-codex "$@"
+    └── <detected installed oh-my-codex CLI> "$@"
 ```
 
 ## File Ownership

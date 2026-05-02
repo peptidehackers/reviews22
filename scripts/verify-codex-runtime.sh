@@ -41,7 +41,7 @@ fi
 
 # Check overlay files match
 MANIFEST="$ROOT/overlay/manifest.json"
-OMX_ROOT="$(npm root -g)/oh-my-codex"
+OMX_ROOT="$OMX_OH_MY_CODEX_ROOT"
 
 if [[ -f "$MANIFEST" ]] && [[ -d "$OMX_ROOT" ]]; then
     mismatches=0

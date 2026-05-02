@@ -3,9 +3,19 @@ set -euo pipefail
 
 echo "Ensuring memory backends..."
 
+resolve_python_bin() {
+    if command -v python >/dev/null 2>&1; then
+        printf '%s\n' "$(command -v python)"
+        return
+    fi
+    printf '%s\n' "$(command -v python3)"
+}
+
+PYTHON_BIN="$(resolve_python_bin)"
+
 # Check neo-reasoner
-if python3 -c "import neo" 2>/dev/null; then
-    echo "  neo-reasoner: OK"
+if "$PYTHON_BIN" -c "import neo" 2>/dev/null; then
+    echo "  neo-reasoner: OK ($PYTHON_BIN)"
 else
     echo "  neo-reasoner: MISSING - installing..."
     pip install neo-reasoner 2>/dev/null || pip install --user neo-reasoner

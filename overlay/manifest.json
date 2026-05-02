@@ -2,7 +2,7 @@
   "dist/cli/index.js": "efaf979a775375507a7010c161ab436652187abb7747c04d285e087192f41d3a",
   "dist/cli/mcp-parity.d.ts": "aa076bc8383e13c38ea5ce3a709e73b025d7a537f7152f9070d9ec4de8e509eb",
   "dist/cli/mcp-parity.js": "c18547043d94f84f55d677be1e607bf154d4866eadcb432ffbbca31b4c7b20bb",
-  "dist/mcp/memory-server.js": "59852b0f76b76d03e201b176fbfb8b25720d98c958008776345526c7baefe25a",
+  "dist/mcp/memory-server.js": "0fe91b3b913d08a3f934e265a886bcd0446a329849d2047fdf37b6a731c00aac",
   "dist/scripts/codex-native-pre-post.js": "d12c7a12b47cf0461af0906330d571b8818d5f51ad1b733755150207a118f621",
   "src/scripts/codex-native-pre-post.ts": "0c205107a75028128ba0cf908b25386c06b7de2351a2365548b173bff9a7a414",
   "src/scripts/neo-memory-bridge.py": "3948cfba5868ec592573bf343fe127487af2b3e2460a233fe958500e2346411e"

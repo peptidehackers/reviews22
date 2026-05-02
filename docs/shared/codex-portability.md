@@ -74,7 +74,7 @@ Key patched files:
    - Ensures Neo and MemPalace are installed
    - Applies overlay files to installed oh-my-codex
    - Verifies OpenClaw + Codex runtime
-4. Executes `npx oh-my-codex` with original args
+4. Executes the detected installed `oh-my-codex` CLI with the original args
 
 ## Environment Variables
 

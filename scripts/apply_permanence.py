@@ -3,22 +3,14 @@
 
 import hashlib
 import json
-import os
 import shutil
-import subprocess
 from pathlib import Path
+
+from runtime_paths import detect_oh_my_codex_root
 
 ROOT = Path(__file__).resolve().parent.parent
 OVERLAY_DIR = ROOT / "overlay"
 MANIFEST_PATH = OVERLAY_DIR / "manifest.json"
-
-def get_oh_my_codex_root() -> Path:
-    try:
-        result = subprocess.run(["npm", "root", "-g"], capture_output=True, text=True, check=True)
-        npm_root = result.stdout.strip()
-        return Path(npm_root) / "oh-my-codex"
-    except subprocess.CalledProcessError as e:
-        raise RuntimeError(f"Failed to get npm root: {e}")
 
 def sha256_file(path: Path) -> str:
     h = hashlib.sha256()
@@ -35,7 +27,7 @@ def main():
         return
     
     manifest = json.loads(MANIFEST_PATH.read_text())
-    omx_root = get_oh_my_codex_root()
+    omx_root = detect_oh_my_codex_root()
     
     if not omx_root.exists():
         print(f"  oh-my-codex not found at {omx_root}")

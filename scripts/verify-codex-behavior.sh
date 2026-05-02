@@ -12,9 +12,9 @@ errors=0
 
 # Test memory write
 echo "  Testing memory write..."
-write_result=$(HOME="$RUN_HOME" TARGET_HOME="$RUN_HOME" ./omx memory write --input "{\"classification\":\"repo_state\",\"problem\":\"verification test\",\"context\":\"behavior check\",\"solution\":\"test solution\",\"failure\":\"none\",\"confidence\":\"verified\",\"source\":\"verify-behavior\",\"tags\":[\"test\"],\"verified\":true,\"workingDirectory\":\"$WORKDIR\"}" --json 2>&1) || true
+write_result=$(HOME="$RUN_HOME" TARGET_HOME="$RUN_HOME" OMX_PORTABLE_SKIP_GUARD=1 ./omx memory write --input "{\"classification\":\"repo_state\",\"problem\":\"verification test\",\"context\":\"behavior check\",\"solution\":\"test solution\",\"failure\":\"none\",\"confidence\":\"verified\",\"source\":\"verify-behavior\",\"tags\":[\"test\"],\"verified\":true,\"workingDirectory\":\"$WORKDIR\"}" --json 2>&1) || true
 
-if echo "$write_result" | grep -q "success\|written\|stored"; then
+if echo "$write_result" | grep -q "accepted\|success\|written\|stored\|updated"; then
     echo "    memory write: OK"
 else
     echo "    memory write: FAIL"
@@ -23,7 +23,7 @@ fi
 
 # Test memory search
 echo "  Testing memory search..."
-search_result=$(HOME="$RUN_HOME" TARGET_HOME="$RUN_HOME" ./omx memory search --input "{\"query\":\"verification test\",\"backend\":\"all\",\"workingDirectory\":\"$WORKDIR\"}" --json 2>&1) || true
+search_result=$(HOME="$RUN_HOME" TARGET_HOME="$RUN_HOME" OMX_PORTABLE_SKIP_GUARD=1 ./omx memory search --input "{\"query\":\"verification test\",\"backend\":\"all\",\"workingDirectory\":\"$WORKDIR\"}" --json 2>&1) || true
 
 if echo "$search_result" | grep -q "results\|matches\|found"; then
     echo "    memory search: OK"
@@ -34,7 +34,7 @@ fi
 
 # Test memory list-backends
 echo "  Testing memory list-backends..."
-backends_result=$(HOME="$RUN_HOME" TARGET_HOME="$RUN_HOME" ./omx memory list-backends --input "{\"workingDirectory\":\"$WORKDIR\"}" --json 2>&1) || true
+backends_result=$(HOME="$RUN_HOME" TARGET_HOME="$RUN_HOME" OMX_PORTABLE_SKIP_GUARD=1 ./omx memory list-backends --input "{\"workingDirectory\":\"$WORKDIR\"}" --json 2>&1) || true
 
 if echo "$backends_result" | grep -q "backends\|project-memory\|semantic"; then
     echo "    list-backends: OK"

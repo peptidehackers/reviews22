@@ -5,6 +5,7 @@ import os
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
+from shutil import which
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -32,12 +33,48 @@ def detect_oh_my_codex_root() -> Path:
     override = os.environ.get("OH_MY_CODEX_ROOT")
     if override:
         candidate = Path(override).expanduser().resolve()
-    else:
+        if candidate.exists():
+            return candidate
+
+    candidates: list[Path] = []
+
+    try:
         npm_root = subprocess.check_output(["npm", "root", "-g"], text=True).strip()
-        candidate = Path(npm_root) / "oh-my-codex"
-    if not candidate.exists():
-        raise SystemExit(f"Could not find oh-my-codex at {candidate}")
-    return candidate
+        if npm_root:
+            candidates.append((Path(npm_root) / "oh-my-codex").expanduser().resolve())
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        pass
+
+    omx_path = which("omx")
+    if omx_path:
+        resolved = Path(omx_path).expanduser().resolve()
+        # Typical install shape: <node>/bin/omx -> ../lib/node_modules/oh-my-codex/dist/cli/omx.js
+        for parent in resolved.parents:
+            if parent.name == "oh-my-codex":
+                candidates.append(parent)
+                break
+
+    direct_candidates = [
+        Path.home() / ".nvm/versions/node",
+        Path("/opt/homebrew/lib/node_modules"),
+        Path("/usr/local/lib/node_modules"),
+    ]
+    for base in direct_candidates:
+        if not base.exists():
+            continue
+        for candidate in base.glob("**/oh-my-codex"):
+            candidates.append(candidate.resolve())
+
+    seen: set[Path] = set()
+    for candidate in candidates:
+        if candidate in seen:
+            continue
+        seen.add(candidate)
+        if candidate.exists():
+            return candidate
+
+    searched = ", ".join(str(path) for path in candidates) or "no candidates"
+    raise SystemExit(f"Could not find oh-my-codex. Searched: {searched}")
 
 
 def resolve_runtime_paths() -> RuntimePaths:

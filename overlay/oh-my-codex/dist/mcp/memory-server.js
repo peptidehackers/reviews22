@@ -28,6 +28,14 @@ const MEMORY_CONFIDENCE = ['verified', 'high', 'medium', 'low', 'assumed'];
 const WIKI_SYSTEM_FILES = new Set(['index.md', 'log.md', 'environment.md']);
 const PACKAGE_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const NEO_BRIDGE_PATH = join(PACKAGE_ROOT, 'src', 'scripts', 'neo-memory-bridge.py');
+function resolvePythonCommand() {
+    const preferred = process.env.OMX_PYTHON_BIN;
+    if (preferred && preferred.trim()) {
+        return preferred.trim();
+    }
+    return process.env.PYENV_VERSION || process.env.PYENV_ROOT || process.env.VIRTUAL_ENV ? 'python' : 'python3';
+}
+const PYTHON_CMD = resolvePythonCommand();
 const NEO_STATUS_TIMEOUT_MS = 10_000;
 const NEO_WRITE_TIMEOUT_MS = 60_000;
 const NEO_SEARCH_TIMEOUT_MS = 30_000;
@@ -993,7 +1001,7 @@ function getSemanticMemoryBackendStatus(wd) {
         };
     }
     try {
-        const output = execFileSync('python3', [NEO_BRIDGE_PATH, 'status', wd], {
+        const output = execFileSync(PYTHON_CMD, [NEO_BRIDGE_PATH, 'status', wd], {
             encoding: 'utf-8',
             stdio: ['ignore', 'pipe', 'pipe'],
             timeout: NEO_STATUS_TIMEOUT_MS,
@@ -1019,7 +1027,7 @@ function maybeWriteSemanticMemory(wd, entry) {
     if (!entry.solution && !entry.failure)
         return { status: 'skipped', reason: 'no semantic pattern content' };
     try {
-        const output = execFileSync('python3', [NEO_BRIDGE_PATH, 'write', wd, JSON.stringify({
+        const output = execFileSync(PYTHON_CMD, [NEO_BRIDGE_PATH, 'write', wd, JSON.stringify({
                 problem: entry.problem,
                 context: entry.context,
                 solution: entry.solution,
@@ -1046,7 +1054,7 @@ function searchSemanticMemoryBackend(wd, query, limit) {
         return { unavailable: 'neo bridge script not found' };
     }
     try {
-        const output = execFileSync('python3', [NEO_BRIDGE_PATH, 'search', wd, JSON.stringify({ query, limit })], {
+        const output = execFileSync(PYTHON_CMD, [NEO_BRIDGE_PATH, 'search', wd, JSON.stringify({ query, limit })], {
             encoding: 'utf-8',
             stdio: ['ignore', 'pipe', 'pipe'],
             timeout: NEO_SEARCH_TIMEOUT_MS,

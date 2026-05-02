@@ -13,7 +13,10 @@ resolve_oh_my_codex_root() {
     printf '%s\n' "$OH_MY_CODEX_ROOT"
     return
   fi
-  printf '%s/oh-my-codex\n' "$(npm root -g)"
+  PYTHONPATH="$OMX_REPO_ROOT${PYTHONPATH:+:$PYTHONPATH}" python3 - <<'PY'
+from scripts.runtime_paths import detect_oh_my_codex_root
+print(detect_oh_my_codex_root())
+PY
 }
 
 OMX_OH_MY_CODEX_ROOT="$(resolve_oh_my_codex_root)"
