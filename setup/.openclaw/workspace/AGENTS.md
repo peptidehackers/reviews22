@@ -61,7 +61,18 @@ Capture what matters. Decisions, context, things to remember. Skip the secrets u
 - If it will matter again beyond the day → also update `MEMORY.md` or an entity page
 - When you learn a lesson → update AGENTS.md, TOOLS.md, or the relevant skill
 - When you make a mistake → document it so future-you doesn't repeat it
+- If a fix, decision, or correction should survive a cleared chat, also write it to OMX project-memory and/or OMX wiki
 - **Text > Brain** 📝
+
+### Before You Wrap Up
+
+Before considering meaningful work finished, ask:
+
+- is the result only in chat?
+- does this need to survive a cleared session?
+- should future agents retrieve this from project-memory, wiki, or curated memory?
+
+If yes, persist it before stopping.
 
 ## Safety
 

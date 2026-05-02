@@ -143,6 +143,18 @@ omx memory list-backends --input '{
 }' --json
 ```
 
+## Durable Memory Defaults
+
+This system should not rely on chat state for important outcomes.
+
+For meaningful completed work:
+
+- verified implementation facts should be written to OMX project-memory
+- architecture, decisions, and procedures should be written to OMX wiki
+- stable user/system preferences should be promoted into OpenClaw `MEMORY.md`
+
+If a result only exists in the session transcript, it is not durably saved.
+
 ## Operational Commands
 
 ```bash
