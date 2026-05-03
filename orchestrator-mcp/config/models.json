@@ -16,7 +16,7 @@
       "traits": ["fast", "cheap", "utility"]
     },
     "frontier": {
-      "models": ["claude", "claude45", "gpt51", "gpt54", "gpt4o", "gemini3pro", "grok4"],
+      "models": ["claude", "claude45", "gpt51", "gpt54", "gemini3pro", "grok4"],
       "promptStyle": "principles",
       "traits": ["strong-reasoning", "high-trust"]
     },
@@ -36,7 +36,7 @@
     "gpt54": { "input": 5.0, "output": 15.0, "provider": "codex" },
     "gpt54mini": { "input": 1.0, "output": 3.0, "provider": "codex" },
     "deepseek": { "input": 0.14, "output": 0.28, "provider": "direct" },
-    "minimax": { "input": 0.15, "output": 0.6, "provider": "mcp" },
+    "minimax": { "input": 0.15, "output": 0.6, "provider": "mcp", "model": "MiniMax-M2.7", "note": "MiniMax 2.7 - fast edge case hunter" },
     "gemini": { "input": 0.075, "output": 0.3, "provider": "direct" },
     "gemini3pro": { "input": 1.25, "output": 5.0, "provider": "openrouter" },
     "grok4": { "input": 3.0, "output": 15.0, "provider": "openrouter" },
@@ -56,7 +56,7 @@
     "gpt54": { "reasoning": "frontier", "latency": "medium", "context": "high", "structuredOutputs": "high", "toolDiscipline": "high", "securityTrust": "high" },
     "gpt54mini": { "reasoning": "high", "latency": "fast", "context": "medium", "structuredOutputs": "high", "toolDiscipline": "high", "securityTrust": "high" },
     "deepseek": { "reasoning": "high", "latency": "medium", "context": "high", "structuredOutputs": "medium", "toolDiscipline": "medium", "securityTrust": "medium" },
-    "minimax": { "reasoning": "medium", "latency": "fast", "context": "medium", "structuredOutputs": "medium", "toolDiscipline": "medium", "securityTrust": "medium" },
+    "minimax": { "reasoning": "high", "latency": "fast", "context": "high", "structuredOutputs": "high", "toolDiscipline": "high", "securityTrust": "medium", "note": "MiniMax 2.7" },
     "gemini": { "reasoning": "high", "latency": "fast", "context": "high", "structuredOutputs": "high", "toolDiscipline": "medium", "securityTrust": "medium" },
     "gemini3pro": { "reasoning": "frontier", "latency": "medium", "context": "frontier", "structuredOutputs": "high", "toolDiscipline": "medium", "securityTrust": "medium" },
     "grok4": { "reasoning": "high", "latency": "medium", "context": "high", "structuredOutputs": "medium", "toolDiscipline": "medium", "securityTrust": "medium" },
@@ -67,18 +67,18 @@
     "chutes": { "reasoning": "medium", "latency": "medium", "context": "medium", "structuredOutputs": "medium", "toolDiscipline": "medium", "securityTrust": "medium" }
   },
   "fallbackChains": {
-    "heavy-reasoning": ["venice", "gpt54", "claude45", "gpt51", "grok4", "gemini3pro", "deepseek", "moonshot", "gpt4o"],
-    "fast-search": ["minimax", "gemini", "gpt4omini"],
+    "heavy-reasoning": ["venice", "gpt54", "claude45", "gpt51", "grok4", "gemini3pro", "deepseek", "moonshot"],
+    "fast-search": ["minimax", "gemini", "gpt54mini"],
     "code-review": ["gpt54", "claude45", "gpt51", "gemini3pro", "deepseek"],
     "edge-cases": ["minimax", "deepseek", "claude45", "grok4"],
     "long-context": ["moonshot", "gemini3pro", "claude45", "deepseek"],
     "uncensored": ["venice", "deepseek", "claude45"],
-    "architecture": ["gpt54", "claude45", "gpt51", "gemini3pro", "deepseek", "gpt4o"],
+    "architecture": ["gpt54", "claude45", "gpt51", "gemini3pro", "deepseek"],
     "security": ["gpt54", "claude45", "gpt51", "deepseek", "minimax"],
-    "debug": ["gpt54", "claude45", "gpt51", "deepseek", "minimax", "gpt4o"]
+    "debug": ["gpt54", "claude45", "gpt51", "deepseek", "minimax"]
   },
   "llmCouncil": {
-    "models": ["claude", "claude45", "claude-haiku", "gpt54", "gpt54mini", "gpt51", "gpt4o", "gpt4omini", "gemini", "gemini3pro", "deepseek", "minimax", "venice", "grok4", "qwen", "llama"],
+    "models": ["gpt54", "claude45", "gpt51", "gemini3pro", "deepseek", "minimax", "venice", "grok4", "claude", "claude-haiku", "gpt54mini", "gemini", "qwen", "llama"],
     "chairman": "gemini3pro"
   },
   "apiEndpoints": {

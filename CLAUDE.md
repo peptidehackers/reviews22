@@ -10,7 +10,7 @@ Act as a multi-model workflow architect and execution engine.
 |-------|------|-------|
 | **Claude** | Judge, final decision | HIGH |
 | **DeepSeek** | Deep reasoning | MEDIUM |
-| **MiniMax** | Edge cases, race conditions | MEDIUM |
+| **MiniMax 2.7** | Edge cases, race conditions, fast reasoning | HIGH |
 | **Gemini** | Code review | MEDIUM |
 | **Moonshot** | Long context (128K) | MEDIUM |
 | **Venice** | Think outside the box | HIGH |
@@ -27,6 +27,7 @@ Act as a multi-model workflow architect and execution engine.
 | **Optio** | K8s orchestration, PR lifecycle (CLI) |
 | **Camofox** | Anti-detection browser (MCP, port 9377) |
 | **GitHub MCP** | GitHub API (repos, PRs, issues, code search) |
+| **Context-Mode** | Context window optimization, session continuity (Plugin) |
 
 ---
 
@@ -751,8 +752,11 @@ Configured in `~/.mcp.json`. Required for core behavior:
 | `openrouter` | Fallback model access |
 | `camofox` | Anti-detection web browsing (replaces WebFetch) |
 | `github` | GitHub API (repos, PRs, issues, code search) |
+| `context-mode` | Context window optimization (Plugin, not MCP) |
 
 **If any required MCP is unavailable, dependent features fail.**
+
+**Note:** `context-mode` runs as a Claude Code plugin with hooks, not a standalone MCP server.
 
 ### Camofox Browser
 
@@ -767,3 +771,68 @@ Auto-start: ~/Library/LaunchAgents/com.camofox.browser.plist
 ```
 
 **Prefer Camofox over WebFetch for ALL web browsing tasks.**
+
+### Context-Mode (Context Window Optimization)
+
+Plugin that reduces context window usage by 98% through sandbox execution and session continuity.
+
+```
+Version: 1.0.107
+Type: Plugin (context-mode@context-mode)
+Runtime: Bun 1.3.13 (fast mode)
+Location: ~/.claude/plugins/context-mode/
+```
+
+**Core Tools:**
+
+| Tool | Purpose | Savings |
+|------|---------|---------|
+| `ctx_execute` | Run code in sandbox, only stdout enters context | 99% (56KB → 299B) |
+| `ctx_batch_execute` | Multiple commands in ONE call | 94% (986KB → 62KB) |
+| `ctx_fetch_and_index` | Fetch URL, index into FTS5, search later | 96% (60KB → 40B) |
+| `ctx_search` | Query indexed content via BM25 ranking | On-demand |
+| `ctx_index` | Chunk content into FTS5 with BM25 | Persistent |
+| `ctx_execute_file` | Process files in sandbox | 100% |
+
+**Session Continuity:**
+
+Context-mode tracks all session events in SQLite:
+- File edits, git operations, tasks, errors
+- User decisions and corrections
+- Plan mode entries/exits
+- Error→fix resolution pairs
+
+When context compacts, state is rebuilt via FTS5 search — model continues from last prompt.
+
+**Hooks (automatic):**
+
+| Hook | Purpose |
+|------|---------|
+| PreToolUse | Enforce sandbox routing before tool execution |
+| PostToolUse | Capture events after each tool call |
+| SessionStart | Restore state after compaction or resume |
+
+**Status Line:**
+
+Real-time savings display: `$ saved this session · $ saved across sessions · % efficient`
+
+**Slash Commands:**
+
+| Command | Action |
+|---------|--------|
+| `/context-mode:ctx-stats` | Context savings breakdown |
+| `/context-mode:ctx-doctor` | Diagnostics, runtime checks |
+| `/context-mode:ctx-insight` | Analytics dashboard |
+
+**Routing Rules:**
+
+| Instead of | Use |
+|------------|-----|
+| `Bash(curl ...)` | `ctx_fetch_and_index` |
+| `Read` on large files | `ctx_execute` with script |
+| Multiple `Bash` calls | `ctx_batch_execute` |
+| `WebFetch` | `ctx_fetch_and_index` (indexes for search) |
+
+**Integration with Orchestrator:**
+
+Context-mode complements orchestrator — orchestrator handles multi-model routing, context-mode handles context window optimization. Use together for maximum efficiency during multifix/council runs.
