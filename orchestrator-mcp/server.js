@@ -469,7 +469,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "multifix_analyze",
         description:
-          "Full multifix workflow: Mem0 recall → Axon system map → Multi-model consensus → Cost report. Use for bug fixing with memory-enhanced analysis.",
+          "Full multifix workflow: Mem0 recall → Axon system map → LLM Council consensus → Cost report. Uses smart auto-escalating council protocol that upgrades to full 3-stage (peer review + chairman) when disagreement is detected.",
         inputSchema: {
           type: "object",
           properties: {
@@ -490,9 +490,18 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               type: "array",
               items: {
                 type: "string",
-                enum: ["claude", "claude45", "minimax", "deepseek", "gemini", "gemini3pro", "gpt4o", "gpt51", "moonshot", "grok4", "venice"],
+                enum: ["claude", "claude45", "minimax", "deepseek", "gemini", "gemini3pro", "gpt4o", "gpt51", "gpt54", "moonshot", "grok4", "venice"],
               },
-              description: "Models to use (default: [minimax, deepseek, gemini])",
+              description: "Models to use (default: [minimax, deepseek, gemini, gpt4o])",
+            },
+            council_mode: {
+              type: "string",
+              enum: ["auto", "quick", "standard", "full"],
+              description: "Council mode: 'auto' (smart escalation), 'quick' (single-pass), 'standard' (+peer review), 'full' (+chairman). Default: auto",
+            },
+            auto_escalate: {
+              type: "boolean",
+              description: "Enable auto-escalation to full council when disagreement detected (default: true, only applies when council_mode=auto)",
             },
             skip_memory: {
               type: "boolean",
@@ -1441,7 +1450,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         bug_description,
         code_context = "",
         entry_points = [],
-        models = ["minimax", "deepseek", "gemini"],
+        models = ["minimax", "deepseek", "gemini", "gpt4o"],
+        council_mode = "auto",
+        auto_escalate = true,
         skip_memory = false,
         skip_axon = false
       } = args;
@@ -1516,30 +1527,185 @@ Provide:
 3. Potential fix approach
 4. Risks of the fix`;
 
-      // Step 4: Multi-model consensus
+      // Step 4: LLM Council consensus (auto-escalating)
       logConsensusRun({
         source: "multifix_analyze",
         requestedModels: models,
-        operation: "analyze"
-      });
-      const consensusResult = await buildConsensus(analysisPrompt, models, {
-        system: "You are an expert debugger. Be specific and actionable.",
         operation: "analyze",
-        securityContext: {
-          literalMode: Boolean(code_context),
-          resource: multifixRoute.risk === "high" ? "sensitive" : "standard"
-        }
+        councilMode: council_mode
       });
+
+      const securityContext = {
+        literalMode: Boolean(code_context),
+        resource: multifixRoute.risk === "high" ? "sensitive" : "standard"
+      };
+
+      let consensusResult;
+      if (council_mode === "auto") {
+        // Smart consensus: starts quick, auto-escalates to full when needed
+        consensusResult = await smartConsensus(analysisPrompt, models, {
+          system: "You are an expert debugger analyzing a bug. Be specific, identify root cause, and recommend actionable fixes.",
+          autoEscalate: auto_escalate,
+          escalateThreshold: 2,
+          minConfidence: 0.6,
+          operation: "analyze",
+          securityContext
+        });
+      } else {
+        // Explicit council mode
+        consensusResult = await runCouncil(analysisPrompt, {
+          models,
+          mode: council_mode,
+          system: "You are an expert debugger analyzing a bug. Be specific, identify root cause, and recommend actionable fixes.",
+          operation: "analyze",
+          securityContext
+        });
+      }
 
       if (!consensusResult.success) {
-        sections.push(`## Multi-Model Analysis\n\n**Error:** ${consensusResult.error}`);
+        sections.push(`## LLM Council Analysis\n\n**Error:** ${consensusResult.error}`);
       } else {
-        sections.push(`## Multi-Model Analysis\n\n${consensusResult.summary}`);
+        // Build council analysis section
+        const councilLines = [];
+        councilLines.push(`## LLM Council Analysis`);
+        councilLines.push("");
+        councilLines.push(`**Protocol:** ${consensusResult.protocol || consensusResult.mode || "council"}`);
 
-        // Individual responses
-        sections.push("## Individual Model Findings\n");
-        for (const resp of consensusResult.responses) {
-          sections.push(`### ${resp.model.toUpperCase()}\n\n${resp.response}\n`);
+        if (consensusResult.escalated !== undefined) {
+          councilLines.push(`**Auto-Escalated:** ${consensusResult.escalated ? "Yes (disagreement detected)" : "No"}`);
+        }
+
+        councilLines.push(`**Confidence:** ${(consensusResult.confidence * 100).toFixed(0)}%`);
+        councilLines.push("");
+
+        // Recommendation
+        if (consensusResult.recommendation) {
+          councilLines.push(`### Recommendation`);
+          councilLines.push(consensusResult.recommendation);
+          councilLines.push("");
+        }
+
+        // If full council, show chairman synthesis
+        if (consensusResult.stage3?.synthesis) {
+          const syn = consensusResult.stage3.synthesis;
+          councilLines.push(`### Chairman Synthesis (${consensusResult.stage3.chairmanModel})`);
+          councilLines.push(syn.final_summary || "");
+          councilLines.push("");
+
+          if (syn.key_findings?.length > 0) {
+            councilLines.push("**Key Findings:**");
+            syn.key_findings.forEach(f => councilLines.push(`- ${f}`));
+            councilLines.push("");
+          }
+
+          if (syn.resolved_disagreements?.length > 0) {
+            councilLines.push("**Resolved Disagreements:**");
+            syn.resolved_disagreements.forEach(d => {
+              councilLines.push(`- ${d.issue}: ${d.resolution}`);
+            });
+            councilLines.push("");
+          }
+
+          if (syn.risks_and_mitigations?.length > 0) {
+            councilLines.push("**Risks & Mitigations:**");
+            syn.risks_and_mitigations.forEach(r => {
+              councilLines.push(`- ${r.risk} → ${r.mitigation}`);
+            });
+            councilLines.push("");
+          }
+
+          if (syn.action_items?.length > 0) {
+            councilLines.push("**Action Items:**");
+            syn.action_items.forEach(a => councilLines.push(`- ${a}`));
+            councilLines.push("");
+          }
+
+          if (syn.minority_views?.length > 0) {
+            councilLines.push("**Minority Views (consider for edge cases):**");
+            syn.minority_views.forEach(v => {
+              councilLines.push(`- ${v.view}: ${v.merit}`);
+            });
+            councilLines.push("");
+          }
+        }
+
+        // Peer review summary if available
+        if (consensusResult.stage2?.aggregation) {
+          const agg = consensusResult.stage2.aggregation;
+          councilLines.push(`### Peer Review Summary`);
+          councilLines.push(`**Reviewer Agreement:** ${(agg.reviewerAgreement * 100).toFixed(0)}%`);
+
+          if (agg.modelRankings?.length > 0) {
+            councilLines.push("**Model Rankings by Peers:**");
+            agg.modelRankings.slice(0, 3).forEach((r, i) => {
+              councilLines.push(`${i + 1}. ${r.model} (score: ${r.averageScore.toFixed(2)})`);
+            });
+          }
+
+          if (agg.consensusInsights?.length > 0) {
+            councilLines.push("**Consensus Insights:**");
+            agg.consensusInsights.slice(0, 3).forEach(i => councilLines.push(`- ${i.insight}`));
+          }
+
+          if (agg.contradictions?.length > 0) {
+            councilLines.push("**Contradictions Found:**");
+            agg.contradictions.slice(0, 3).forEach(c => councilLines.push(`- ${c.contradiction}`));
+          }
+          councilLines.push("");
+        }
+
+        // Disagreements (for quick/standard modes)
+        if (consensusResult.disagreements?.length > 0 && !consensusResult.stage3) {
+          councilLines.push("### Disagreements");
+          consensusResult.disagreements.forEach(d => {
+            councilLines.push(`- ${d.description || d.type}`);
+          });
+          councilLines.push("");
+        }
+
+        // Common points (for quick/standard modes)
+        if (consensusResult.commonPoints?.length > 0 && !consensusResult.stage3) {
+          councilLines.push("### Agreement Points");
+          consensusResult.commonPoints.slice(0, 5).forEach(p => {
+            councilLines.push(`- ${p.assertion} (${p.agreementCount}/${p.totalModels || models.length})`);
+          });
+          councilLines.push("");
+        }
+
+        sections.push(councilLines.join("\n"));
+
+        // Individual model findings (stage 1 responses)
+        const stage1Responses = consensusResult.stage1?.responses || consensusResult.responses || [];
+        if (stage1Responses.length > 0) {
+          sections.push("## Individual Model Findings\n");
+          for (const resp of stage1Responses) {
+            const confText = resp.structured?.confidence
+              ? ` (${(resp.structured.confidence * 100).toFixed(0)}% confident)`
+              : "";
+            sections.push(`### ${resp.model.toUpperCase()}${confText}\n`);
+
+            if (resp.structured) {
+              if (resp.structured.recommended_action) {
+                sections.push(`**Recommendation:** ${resp.structured.recommended_action}\n`);
+              }
+              if (resp.structured.key_claims?.length > 0) {
+                sections.push(`**Key Claims:** ${resp.structured.key_claims.join("; ")}\n`);
+              }
+              if (resp.structured.risks?.length > 0) {
+                sections.push(`**Risks:** ${resp.structured.risks.join("; ")}\n`);
+              }
+              if (resp.structured.reasoning_chain?.length > 0) {
+                sections.push(`**Reasoning:** ${resp.structured.reasoning_chain.join(" → ")}\n`);
+              }
+            } else {
+              sections.push(`${resp.response?.substring(0, 1000) || "No response"}...\n`);
+            }
+          }
+        }
+
+        // Token usage
+        if (consensusResult.totalTokens) {
+          sections.push(`## Token Usage\n\n**Input:** ${consensusResult.totalTokens.input} | **Output:** ${consensusResult.totalTokens.output}`);
         }
       }
 

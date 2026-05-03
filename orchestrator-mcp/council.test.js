@@ -637,3 +637,38 @@ test("consensus module re-exports council functions", async () => {
   assert.equal(typeof consensus.smartConsensus, "function");
   assert.equal(typeof consensus.buildConsensusEnhanced, "function");
 });
+
+// ============================================================================
+// Multifix Integration Tests (Schema Validation)
+// ============================================================================
+
+test("multifix_analyze tool schema includes council_mode parameter", async () => {
+  // Import the server to check tool definitions
+  const { readFileSync } = await import("fs");
+  const serverCode = readFileSync(new URL("./server.js", import.meta.url), "utf-8");
+
+  // Check that council_mode is in the schema
+  assert.ok(serverCode.includes("council_mode"), "multifix_analyze should have council_mode parameter");
+  assert.ok(serverCode.includes('"auto", "quick", "standard", "full"'), "council_mode should have correct enum values");
+  assert.ok(serverCode.includes("auto_escalate"), "multifix_analyze should have auto_escalate parameter");
+});
+
+test("multifix_analyze uses smartConsensus for auto mode", async () => {
+  const { readFileSync } = await import("fs");
+  const serverCode = readFileSync(new URL("./server.js", import.meta.url), "utf-8");
+
+  // Check that multifix_analyze calls smartConsensus
+  assert.ok(serverCode.includes("await smartConsensus(analysisPrompt, models"), "multifix_analyze should call smartConsensus");
+  assert.ok(serverCode.includes("await runCouncil(analysisPrompt,"), "multifix_analyze should call runCouncil for explicit modes");
+});
+
+test("multifix description mentions LLM Council", async () => {
+  const { readFileSync } = await import("fs");
+  const serverCode = readFileSync(new URL("./server.js", import.meta.url), "utf-8");
+
+  // Find multifix_analyze description
+  const descMatch = serverCode.match(/name: "multifix_analyze"[\s\S]*?description:\s*"([^"]+)"/);
+  assert.ok(descMatch, "Should find multifix_analyze description");
+  assert.ok(descMatch[1].includes("LLM Council") || descMatch[1].includes("council"), "Description should mention council");
+  assert.ok(descMatch[1].includes("auto-escalat"), "Description should mention auto-escalation");
+});

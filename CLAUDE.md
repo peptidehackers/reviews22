@@ -456,30 +456,41 @@ Behavioral guidelines to reduce common LLM coding mistakes.
 
 **Core execution mode for bug fixing, patching, and safe refactoring.**
 
+Now integrated with [LLM Council Protocol](#15-llm-council-protocol) for auto-escalating consensus.
+
 ### Phases
 
 1. **Memory Recall** - Search Mem0 for similar past fixes
 2. **System Mapping** - Axon + Semgrep + ripgrep
-3. **Multi-model Analysis** - Consensus across models
-4. **Root Cause Decision** - Claude decides, weighted by cluster agreement
+3. **LLM Council Analysis** - Auto-escalating consensus (see §15)
+4. **Root Cause Decision** - Chairman synthesizes, weighted by peer review
 5. **Patch Generation** - Codex builds minimal fix
 6. **Verification** - Check for regressions
 7. **Memory Storage** - Store fix pattern to Mem0
 
-### Execution Modes
+### Council Modes
 
-| Mode | When |
-|------|------|
-| Standard | Default, efficient routing |
-| Broadcast | Unclear root cause, high stakes |
-| Mixture-of-Experts | Cross-family validation needed |
+| Mode | Stages | When |
+|------|--------|------|
+| `auto` (default) | Escalates when needed | Most bugs |
+| `quick` | Stage 1 only | Simple, obvious bugs |
+| `standard` | + Peer review | Disagreement detection |
+| `full` | + Chairman synthesis | Critical bugs |
+
+### Auto-Escalation
+
+When `council_mode=auto`, multifix:
+1. Starts with quick single-pass consensus
+2. Escalates to full council when:
+   - Disagreement count ≥ 2, OR
+   - Confidence < 60%
 
 ### Rules
 
 - Never ignore minority opinions without investigation
 - Cluster by finding, not by model name
 - Cross-family agreement = stronger signal
-- Auto-escalate to broadcast if confidence < 0.7
+- Auto-escalate to full council if confidence < 0.6
 
 ---
 

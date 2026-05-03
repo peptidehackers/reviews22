@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "sourceDigest": "cd817eed50c145bf2939f9e6e2a87c43c151ff07cbe54bfddc33198717ebd413",
+  "sourceDigest": "d5823b71c60767bf61824dcf2bfc15b39bf51d4a2b0347be513ea101326aca90",
   "hero": {
     "eyebrow": "Huashu-inspired integration for real MCP systems",
     "title": "A source-synced design surface for orchestrator-mcp and minimax-mcp",
@@ -931,8 +931,8 @@
           "name": "multifix_analyze",
           "serverId": "orchestrator-mcp",
           "category": "Diagnostics & Repair",
-          "description": "Full multifix workflow: Mem0 recall → Axon system map → Multi-model consensus → Cost report. Use for bug fixing with memory-enhanced analysis.",
-          "highlight": "Full multifix workflow: Mem0 recall → Axon system map → Multi-model consensus → Cost report",
+          "description": "Full multifix workflow: Mem0 recall → Axon system map → LLM Council consensus → Cost report. Uses smart auto-escalating council protocol that upgrades to full 3-stage (peer review + chairman) when disagreement is detected.",
+          "highlight": "Full multifix workflow: Mem0 recall → Axon system map → LLM Council consensus → Cost report",
           "required": [
             "bug_description"
           ],
@@ -940,6 +940,8 @@
             "code_context",
             "entry_points",
             "models",
+            "council_mode",
+            "auto_escalate",
             "skip_memory",
             "skip_axon"
           ],
@@ -972,12 +974,27 @@
                   "gemini3pro",
                   "gpt4o",
                   "gpt51",
+                  "gpt54",
                   "moonshot",
                   "grok4",
                   "venice"
                 ]
               },
-              "description": "Models to use (default: [minimax, deepseek, gemini])"
+              "description": "Models to use (default: [minimax, deepseek, gemini, gpt4o])"
+            },
+            "council_mode": {
+              "type": "string",
+              "enum": [
+                "auto",
+                "quick",
+                "standard",
+                "full"
+              ],
+              "description": "Council mode: 'auto' (smart escalation), 'quick' (single-pass), 'standard' (+peer review), 'full' (+chairman). Default: auto"
+            },
+            "auto_escalate": {
+              "type": "boolean",
+              "description": "Enable auto-escalation to full council when disagreement detected (default: true, only applies when council_mode=auto)"
             },
             "skip_memory": {
               "type": "boolean",
