@@ -16,7 +16,7 @@
  * @module preflight
  */
 
-import { isMem0Available } from "./memory.js";
+import { isMem0Available } from "./mem0.js";
 import { emitProgress, PROGRESS_EVENTS } from "./session.js";
 
 // ============================================================================
