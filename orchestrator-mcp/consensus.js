@@ -1,10 +1,35 @@
 /**
  * Consensus Engine - Compare multiple model responses and detect disagreement.
+ *
+ * This module provides two consensus approaches:
+ *
+ * 1. Legacy single-pass consensus (buildConsensus, quickVote)
+ *    - Fast parallel queries to multiple models
+ *    - Heuristic-based disagreement detection
+ *    - Good for quick decisions
+ *
+ * 2. Full LLM Council protocol (via council.js)
+ *    - 3-stage: Initial → Peer Review → Chairman Synthesis
+ *    - Anonymized peer evaluation prevents bias
+ *    - Chairman synthesis produces unified high-quality output
+ *    - Better for important decisions
+ *
+ * @module consensus
+ * @see {@link ./council.js} for the full council implementation
  */
 
 import { callModel } from "./fallback.js";
-import { getModelFamily } from "./models.js";
+import { getModelFamily, LLM_COUNCIL_CHAIRMAN } from "./models.js";
 import { emitProgress, PROGRESS_EVENTS } from "./session.js";
+
+// Re-export council functions for convenience
+export {
+  runCouncil,
+  quickCouncil,
+  standardCouncil,
+  fullCouncil,
+  formatCouncilResult
+} from "./council.js";
 
 const STRUCTURED_CONSENSUS_INSTRUCTIONS = `Return JSON only with this shape:
 {
@@ -499,4 +524,102 @@ export async function quickVote(question, models, options = {}) {
     votes,
     confidence: Math.abs(yesVotes - noVotes) / Math.max(result.responses.length, 1)
   };
+}
+
+// ============================================================================
+// Smart Consensus - Auto-Escalation to Full Council
+// ============================================================================
+
+import { runCouncil, fullCouncil } from "./council.js";
+
+/**
+ * Smart consensus that automatically escalates to full council when needed.
+ *
+ * Starts with quick single-pass consensus. If disagreement is high or
+ * confidence is low, automatically escalates to full 3-stage council.
+ *
+ * @param {string} prompt - The question/task
+ * @param {string[]} models - Models to query
+ * @param {Object} options - Configuration options
+ * @param {boolean} options.autoEscalate - Enable auto-escalation (default: true)
+ * @param {number} options.escalateThreshold - Disagreement count to trigger escalation (default: 2)
+ * @param {number} options.minConfidence - Minimum confidence before escalation (default: 0.6)
+ * @returns {Promise<Object>} Consensus result
+ */
+export async function smartConsensus(prompt, models, options = {}) {
+  const {
+    autoEscalate = true,
+    escalateThreshold = 2,
+    minConfidence = 0.6,
+    ...restOptions
+  } = options;
+
+  // First try quick consensus
+  const quickResult = await buildConsensus(prompt, models, restOptions);
+
+  if (!quickResult.success) {
+    return quickResult;
+  }
+
+  // Check if we should escalate
+  const shouldEscalate = autoEscalate && (
+    quickResult.disagreements.length >= escalateThreshold ||
+    quickResult.confidence < minConfidence
+  );
+
+  if (!shouldEscalate) {
+    return {
+      ...quickResult,
+      escalated: false,
+      protocol: "single-pass"
+    };
+  }
+
+  // Escalate to full council
+  emitProgress(PROGRESS_EVENTS.CONSENSUS, {
+    phase: "escalating",
+    reason: quickResult.disagreements.length >= escalateThreshold
+      ? `High disagreement (${quickResult.disagreements.length})`
+      : `Low confidence (${(quickResult.confidence * 100).toFixed(0)}%)`,
+    initialConfidence: quickResult.confidence
+  });
+
+  const councilResult = await fullCouncil(prompt, {
+    models,
+    ...restOptions
+  });
+
+  return {
+    ...councilResult,
+    escalated: true,
+    protocol: "full-council",
+    initialResult: {
+      confidence: quickResult.confidence,
+      disagreements: quickResult.disagreements.length
+    }
+  };
+}
+
+/**
+ * Enhanced buildConsensus with council mode support
+ *
+ * @param {string} prompt - The question/task
+ * @param {string[]} models - Models to query
+ * @param {Object} options - Configuration options
+ * @param {string} options.councilMode - "quick" | "standard" | "full" | "auto" | null
+ * @returns {Promise<Object>} Consensus result
+ */
+export async function buildConsensusEnhanced(prompt, models, options = {}) {
+  const { councilMode = null, ...restOptions } = options;
+
+  // If council mode specified, use council
+  if (councilMode) {
+    if (councilMode === "auto") {
+      return smartConsensus(prompt, models, restOptions);
+    }
+    return runCouncil(prompt, { models, mode: councilMode, ...restOptions });
+  }
+
+  // Default to legacy single-pass
+  return buildConsensus(prompt, models, restOptions);
 }

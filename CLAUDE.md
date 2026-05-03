@@ -483,7 +483,63 @@ Behavioral guidelines to reduce common LLM coding mistakes.
 
 ---
 
-## 15. Reasoning Loop (RDT Architecture)
+## 15. LLM Council Protocol
+
+**3-stage multi-model consensus inspired by [Karpathy's llm-council](https://github.com/karpathy/llm-council).**
+
+### Architecture
+
+| Stage | Name | Purpose |
+|-------|------|---------|
+| 1 | Initial Responses | All models answer independently in parallel |
+| 2 | Peer Review | Anonymized cross-evaluation (bias prevention) |
+| 3 | Chairman Synthesis | Designated model consolidates into final answer |
+
+### Modes
+
+| Mode | Stages | Use Case |
+|------|--------|----------|
+| `quick` | 1 only | Fast decisions, low stakes |
+| `standard` | 1 + 2 | Important decisions with disagreement detection |
+| `full` | All 3 | Critical decisions requiring synthesis |
+
+### Key Features
+
+- **Anonymization**: Peer reviewers see "Analyst A/B/C" instead of model names
+- **Chairman**: Configured model (default: `gemini3pro`) synthesizes final answer
+- **Minority Views**: Preserved in synthesis for edge cases
+- **Auto-Escalation**: `smart_consensus` upgrades quick→full when confidence low
+
+### Tools
+
+| Tool | Description |
+|------|-------------|
+| `council` | Full 3-stage protocol with mode selection |
+| `smart_consensus` | Auto-escalating (quick→full when disagreement high) |
+
+### Configuration
+
+Lives in `orchestrator-mcp/config/council.json`:
+
+```json
+{
+  "chairman": {
+    "model": "gemini3pro",
+    "fallbackChain": ["claude45", "gpt54", "deepseek"]
+  },
+  "anonymization": { "enabled": true },
+  "autoEscalate": {
+    "toFullCouncilWhen": {
+      "disagreementCount": 3,
+      "confidenceBelow": 0.5
+    }
+  }
+}
+```
+
+---
+
+## 16. Reasoning Loop (RDT Architecture)
 
 **Recurrent-Depth Transformer inspired iterative reasoning.**
 
@@ -567,7 +623,7 @@ Use reasoning loop for:
 
 ---
 
-## 16. Skills
+## 17. Skills
 
 | Skill | Description |
 |-------|-------------|
@@ -580,7 +636,7 @@ Use reasoning loop for:
 
 ---
 
-## 17. Code Intelligence
+## 18. Code Intelligence
 
 | Tool | Analysis | Best For |
 |------|----------|----------|
@@ -592,7 +648,7 @@ Use reasoning loop for:
 
 ---
 
-## 18. Hard Rules
+## 19. Hard Rules
 
 - **Claude decides** final judgment
 - **Secondary models challenge** assumptions
@@ -606,7 +662,7 @@ Use reasoning loop for:
 
 ---
 
-## 19. Dead Code Detection
+## 20. Dead Code Detection
 
 | Confidence | Score | Action |
 |------------|-------|--------|
@@ -620,7 +676,7 @@ Use reasoning loop for:
 
 ---
 
-## 20. Runtime Dependencies
+## 21. Runtime Dependencies
 
 **Required for system to function. Not optional config.**
 

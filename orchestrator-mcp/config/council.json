@@ -1,0 +1,63 @@
+{
+  "modes": {
+    "quick": {
+      "skipPeerReview": true,
+      "skipChairman": true,
+      "maxModels": 3,
+      "description": "Fast single-pass consensus (existing behavior)"
+    },
+    "standard": {
+      "skipPeerReview": false,
+      "skipChairman": true,
+      "maxModels": 5,
+      "description": "Adds peer review for disagreement detection"
+    },
+    "full": {
+      "skipPeerReview": false,
+      "skipChairman": false,
+      "maxModels": 8,
+      "description": "Complete 3-stage protocol with chairman synthesis"
+    }
+  },
+  "anonymization": {
+    "enabled": true,
+    "labels": [
+      "Analyst A",
+      "Analyst B",
+      "Analyst C",
+      "Analyst D",
+      "Analyst E",
+      "Analyst F",
+      "Analyst G",
+      "Analyst H"
+    ],
+    "shuffleSeed": true
+  },
+  "peerReview": {
+    "maxReviewsPerModel": 4,
+    "evaluationCriteria": ["accuracy", "completeness", "reasoning", "actionability"],
+    "requireRankings": true,
+    "confidenceThreshold": 0.6
+  },
+  "chairman": {
+    "model": "gemini3pro",
+    "fallbackChain": ["claude45", "gpt54", "deepseek"],
+    "synthesisStyle": "integrative",
+    "includeMinorityViews": true,
+    "maxSynthesisTokens": 8192
+  },
+  "timeouts": {
+    "initialResponse": 60000,
+    "peerReview": 45000,
+    "chairmanSynthesis": 90000
+  },
+  "defaultMode": "standard",
+  "autoEscalate": {
+    "enabled": true,
+    "toFullCouncilWhen": {
+      "disagreementCount": 3,
+      "confidenceBelow": 0.5,
+      "contradictionsFound": true
+    }
+  }
+}

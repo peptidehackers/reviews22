@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "sourceDigest": "c6d45d67fcbe6528d58e412e26a7597e580289eec0207b052da323cd203ce18f",
+  "sourceDigest": "cd817eed50c145bf2939f9e6e2a87c43c151ff07cbe54bfddc33198717ebd413",
   "hero": {
     "eyebrow": "Huashu-inspired integration for real MCP systems",
     "title": "A source-synced design surface for orchestrator-mcp and minimax-mcp",
@@ -14,7 +14,7 @@
   "stats": [
     {
       "label": "Orchestrator tools",
-      "value": 24,
+      "value": 26,
       "detail": "Parsed directly from server.js"
     },
     {
@@ -1214,6 +1214,155 @@
           "required": [],
           "optional": [],
           "properties": {}
+        }
+      ]
+    },
+    {
+      "category": "Uncategorized",
+      "tools": [
+        {
+          "name": "council",
+          "serverId": "orchestrator-mcp",
+          "category": "Uncategorized",
+          "description": "Full LLM Council protocol with 3 stages: Initial Responses → Anonymized Peer Review → Chairman Synthesis. Use for important decisions where quality matters more than speed. Inspired by Karpathy's llm-council but integrated with MCP infrastructure.",
+          "highlight": "Full LLM Council protocol with 3 stages: Initial Responses → Anonymized Peer Review → Chairman Synthesis",
+          "required": [
+            "prompt"
+          ],
+          "optional": [
+            "models",
+            "mode",
+            "system",
+            "max_tokens",
+            "operation"
+          ],
+          "properties": {
+            "prompt": {
+              "type": "string",
+              "description": "The question or task for the council to deliberate on"
+            },
+            "models": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "claude",
+                  "claude45",
+                  "claude-haiku",
+                  "minimax",
+                  "deepseek",
+                  "moonshot",
+                  "gemini",
+                  "gemini3pro",
+                  "gpt4o",
+                  "gpt4omini",
+                  "gpt51",
+                  "gpt54",
+                  "gpt54mini",
+                  "grok4",
+                  "qwen",
+                  "llama",
+                  "venice",
+                  "chutes"
+                ]
+              },
+              "description": "Models to include in the council (default: first 5 from LLM_COUNCIL_MODELS)"
+            },
+            "mode": {
+              "type": "string",
+              "enum": [
+                "quick",
+                "standard",
+                "full"
+              ],
+              "description": "Council mode: 'quick' (single-pass), 'standard' (+ peer review), 'full' (+ chairman synthesis). Default: standard"
+            },
+            "system": {
+              "type": "string",
+              "description": "Optional system prompt for all stages"
+            },
+            "max_tokens": {
+              "type": "number",
+              "description": "Maximum tokens per response (default: 4096)"
+            },
+            "operation": {
+              "type": "string",
+              "enum": [
+                "read",
+                "analyze",
+                "write",
+                "execute",
+                "destructive"
+              ],
+              "description": "Security operation type (default: analyze)"
+            }
+          }
+        },
+        {
+          "name": "smart_consensus",
+          "serverId": "orchestrator-mcp",
+          "category": "Uncategorized",
+          "description": "Smart consensus that auto-escalates to full council when disagreement is high or confidence is low. Starts fast, upgrades when needed.",
+          "highlight": "Smart consensus that auto-escalates to full council when disagreement is high or confidence is low",
+          "required": [
+            "prompt"
+          ],
+          "optional": [
+            "models",
+            "auto_escalate",
+            "escalate_threshold",
+            "min_confidence",
+            "system"
+          ],
+          "properties": {
+            "prompt": {
+              "type": "string",
+              "description": "The question or task"
+            },
+            "models": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "claude",
+                  "claude45",
+                  "claude-haiku",
+                  "minimax",
+                  "deepseek",
+                  "moonshot",
+                  "gemini",
+                  "gemini3pro",
+                  "gpt4o",
+                  "gpt4omini",
+                  "gpt51",
+                  "gpt54",
+                  "gpt54mini",
+                  "grok4",
+                  "qwen",
+                  "llama",
+                  "venice",
+                  "chutes"
+                ]
+              },
+              "description": "Models to query"
+            },
+            "auto_escalate": {
+              "type": "boolean",
+              "description": "Enable auto-escalation to full council (default: true)"
+            },
+            "escalate_threshold": {
+              "type": "number",
+              "description": "Number of disagreements to trigger escalation (default: 2)"
+            },
+            "min_confidence": {
+              "type": "number",
+              "description": "Minimum confidence before escalation (default: 0.6)"
+            },
+            "system": {
+              "type": "string",
+              "description": "Optional system prompt"
+            }
+          }
         }
       ]
     },

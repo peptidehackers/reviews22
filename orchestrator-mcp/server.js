@@ -41,7 +41,17 @@ import {
   logSecurityEvent,
   logConsensusRun
 } from "./session.js";
-import { buildConsensus, quickVote } from "./consensus.js";
+import {
+  buildConsensus,
+  quickVote,
+  smartConsensus,
+  buildConsensusEnhanced,
+  runCouncil,
+  quickCouncil,
+  standardCouncil,
+  fullCouncil,
+  formatCouncilResult
+} from "./consensus.js";
 import { getUsageSummary, formatCostReport, estimateCost, resetUsage, getRecentUsage } from "./cost.js";
 import { getPrompt, buildPrompt, listPromptTemplates, getPromptComparison } from "./prompts.js";
 import {
@@ -209,6 +219,86 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ["question"],
+        },
+      },
+      {
+        name: "council",
+        description:
+          "Full LLM Council protocol with 3 stages: Initial Responses → Anonymized Peer Review → Chairman Synthesis. Use for important decisions where quality matters more than speed. Inspired by Karpathy's llm-council but integrated with MCP infrastructure.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            prompt: {
+              type: "string",
+              description: "The question or task for the council to deliberate on",
+            },
+            models: {
+              type: "array",
+              items: {
+                type: "string",
+                enum: ["claude", "claude45", "claude-haiku", "minimax", "deepseek", "moonshot", "gemini", "gemini3pro", "gpt4o", "gpt4omini", "gpt51", "gpt54", "gpt54mini", "grok4", "qwen", "llama", "venice", "chutes"],
+              },
+              description: "Models to include in the council (default: first 5 from LLM_COUNCIL_MODELS)",
+            },
+            mode: {
+              type: "string",
+              enum: ["quick", "standard", "full"],
+              description: "Council mode: 'quick' (single-pass), 'standard' (+ peer review), 'full' (+ chairman synthesis). Default: standard",
+            },
+            system: {
+              type: "string",
+              description: "Optional system prompt for all stages",
+            },
+            max_tokens: {
+              type: "number",
+              description: "Maximum tokens per response (default: 4096)",
+            },
+            operation: {
+              type: "string",
+              enum: ["read", "analyze", "write", "execute", "destructive"],
+              description: "Security operation type (default: analyze)",
+            },
+          },
+          required: ["prompt"],
+        },
+      },
+      {
+        name: "smart_consensus",
+        description:
+          "Smart consensus that auto-escalates to full council when disagreement is high or confidence is low. Starts fast, upgrades when needed.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            prompt: {
+              type: "string",
+              description: "The question or task",
+            },
+            models: {
+              type: "array",
+              items: {
+                type: "string",
+                enum: ["claude", "claude45", "claude-haiku", "minimax", "deepseek", "moonshot", "gemini", "gemini3pro", "gpt4o", "gpt4omini", "gpt51", "gpt54", "gpt54mini", "grok4", "qwen", "llama", "venice", "chutes"],
+              },
+              description: "Models to query",
+            },
+            auto_escalate: {
+              type: "boolean",
+              description: "Enable auto-escalation to full council (default: true)",
+            },
+            escalate_threshold: {
+              type: "number",
+              description: "Number of disagreements to trigger escalation (default: 2)",
+            },
+            min_confidence: {
+              type: "number",
+              description: "Minimum confidence before escalation (default: 0.6)",
+            },
+            system: {
+              type: "string",
+              description: "Optional system prompt",
+            },
+          },
+          required: ["prompt"],
         },
       },
       {
@@ -853,6 +943,217 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         content: [{
           type: "text",
           text: `## Vote Result\n\n**Decision:** ${result.decision}\n**Confidence:** ${(result.confidence * 100).toFixed(0)}%\n**Tally:** YES: ${result.yesVotes}, NO: ${result.noVotes}\n\n### Individual Votes\n\n${votesText}`
+        }],
+      };
+    }
+
+    // === COUNCIL (Full 3-Stage Protocol) ===
+    if (name === "council") {
+      const {
+        prompt,
+        models,
+        mode = "standard",
+        system = null,
+        max_tokens = 4096,
+        operation = "analyze"
+      } = args;
+
+      // Parse models if string
+      let targetModels = models;
+      if (typeof targetModels === "string") {
+        try {
+          targetModels = JSON.parse(targetModels);
+        } catch {
+          targetModels = targetModels.split(",").map(m => m.trim());
+        }
+      }
+
+      const securityContext = {
+        literalMode: /```|stack trace|traceback/i.test(prompt),
+        resource: "standard"
+      };
+
+      const result = await runCouncil(prompt, {
+        models: targetModels,
+        mode,
+        system,
+        maxTokens: max_tokens,
+        operation,
+        securityContext
+      });
+
+      if (!result.success) {
+        return {
+          content: [{
+            type: "text",
+            text: `## Council Failed\n\n**Error:** ${result.error}\n\n${result.allErrors?.map(e => `- ${e.model || "Unknown"}: ${e.error}`).join("\n") || ""}`
+          }],
+          isError: true,
+        };
+      }
+
+      // Build detailed response
+      const sections = [];
+      sections.push(result.summary);
+      sections.push("");
+
+      // Stage details
+      if (result.stage1) {
+        sections.push("## Stage 1: Initial Responses");
+        sections.push("");
+        result.stage1.responses.forEach(r => {
+          const action = r.structured?.recommended_action || "See raw response";
+          const conf = r.structured?.confidence ? `(${(r.structured.confidence * 100).toFixed(0)}% confident)` : "";
+          sections.push(`### ${r.model} ${conf}`);
+          sections.push(`**Recommendation:** ${action}`);
+          if (r.structured?.key_claims?.length > 0) {
+            sections.push(`**Key Claims:** ${r.structured.key_claims.slice(0, 3).join("; ")}`);
+          }
+          sections.push("");
+        });
+      }
+
+      if (result.stage2) {
+        sections.push("## Stage 2: Peer Review Summary");
+        sections.push("");
+        const agg = result.stage2.aggregation;
+        if (agg.modelRankings?.length > 0) {
+          sections.push("**Model Rankings by Peers:**");
+          agg.modelRankings.slice(0, 5).forEach((r, i) => {
+            sections.push(`${i + 1}. ${r.model} (avg score: ${r.averageScore.toFixed(2)})`);
+          });
+          sections.push("");
+        }
+        if (agg.consensusInsights?.length > 0) {
+          sections.push("**Consensus Insights:**");
+          agg.consensusInsights.slice(0, 3).forEach(i => {
+            sections.push(`- ${i.insight}`);
+          });
+          sections.push("");
+        }
+        sections.push(`**Reviewer Agreement:** ${(agg.reviewerAgreement * 100).toFixed(0)}%`);
+        sections.push("");
+      }
+
+      if (result.stage3) {
+        sections.push("## Stage 3: Chairman Synthesis");
+        sections.push("");
+        sections.push(`**Chairman Model:** ${result.stage3.chairmanModel}`);
+        if (result.stage3.synthesis) {
+          const syn = result.stage3.synthesis;
+          sections.push(`**Final Recommendation:** ${syn.consensus_recommendation}`);
+          sections.push(`**Confidence:** ${(syn.confidence * 100).toFixed(0)}%`);
+          if (syn.key_findings?.length > 0) {
+            sections.push("");
+            sections.push("**Key Findings:**");
+            syn.key_findings.slice(0, 5).forEach(f => sections.push(`- ${f}`));
+          }
+          if (syn.resolved_disagreements?.length > 0) {
+            sections.push("");
+            sections.push("**Resolved Disagreements:**");
+            syn.resolved_disagreements.slice(0, 3).forEach(d => {
+              sections.push(`- ${d.issue}: ${d.resolution}`);
+            });
+          }
+          if (syn.minority_views?.length > 0) {
+            sections.push("");
+            sections.push("**Minority Views:**");
+            syn.minority_views.slice(0, 2).forEach(v => {
+              sections.push(`- ${v.view} (${v.merit})`);
+            });
+          }
+          if (syn.action_items?.length > 0) {
+            sections.push("");
+            sections.push("**Action Items:**");
+            syn.action_items.forEach(a => sections.push(`- ${a}`));
+          }
+        }
+        sections.push("");
+      }
+
+      // Metadata
+      sections.push("---");
+      sections.push(`**Total Tokens:** ${result.totalTokens.input} input, ${result.totalTokens.output} output`);
+      sections.push(`**Duration:** ${result.durationMs}ms`);
+
+      return {
+        content: [{
+          type: "text",
+          text: sections.join("\n")
+        }],
+      };
+    }
+
+    // === SMART CONSENSUS (Auto-Escalating) ===
+    if (name === "smart_consensus") {
+      const {
+        prompt,
+        models,
+        auto_escalate = true,
+        escalate_threshold = 2,
+        min_confidence = 0.6,
+        system = null
+      } = args;
+
+      // Parse models if string
+      let targetModels = models;
+      if (typeof targetModels === "string") {
+        try {
+          targetModels = JSON.parse(targetModels);
+        } catch {
+          targetModels = targetModels.split(",").map(m => m.trim());
+        }
+      }
+
+      if (!targetModels || !Array.isArray(targetModels) || targetModels.length === 0) {
+        const route = routeTask(prompt);
+        targetModels = route.consensusModels || LLM_COUNCIL_MODELS.slice(0, 5);
+      }
+
+      const result = await smartConsensus(prompt, targetModels, {
+        autoEscalate: auto_escalate,
+        escalateThreshold: escalate_threshold,
+        minConfidence: min_confidence,
+        system
+      });
+
+      if (!result.success) {
+        return {
+          content: [{
+            type: "text",
+            text: `## Smart Consensus Failed\n\n${result.error}`
+          }],
+          isError: true,
+        };
+      }
+
+      const sections = [];
+      sections.push("## Smart Consensus Result");
+      sections.push("");
+      sections.push(`**Protocol:** ${result.protocol}`);
+      sections.push(`**Escalated:** ${result.escalated ? "Yes" : "No"}`);
+
+      if (result.escalated && result.initialResult) {
+        sections.push(`**Escalation Reason:** Initial confidence was ${(result.initialResult.confidence * 100).toFixed(0)}% with ${result.initialResult.disagreements} disagreements`);
+      }
+
+      sections.push("");
+
+      if (result.protocol === "full-council") {
+        sections.push(`**Recommendation:** ${result.recommendation}`);
+        sections.push(`**Final Confidence:** ${(result.confidence * 100).toFixed(0)}%`);
+        sections.push("");
+        sections.push(result.summary);
+      } else {
+        sections.push(`**Confidence:** ${(result.confidence * 100).toFixed(0)}%`);
+        sections.push("");
+        sections.push(result.summary);
+      }
+
+      return {
+        content: [{
+          type: "text",
+          text: sections.join("\n")
         }],
       };
     }
