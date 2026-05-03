@@ -489,3 +489,163 @@ export function resetSession() {
   currentSession = null;
   progressHandlers = [];
 }
+
+// ============================================================================
+// Evidence Pack Generation (claude-code-harness pattern)
+// ============================================================================
+
+/**
+ * Generate an evidence pack for the current session.
+ * Provides auditable records with full traces and reproducible configuration.
+ *
+ * @param {Object} options - Generation options
+ * @param {boolean} options.includeTranscript - Include full transcript (default: true)
+ * @param {boolean} options.includeConfig - Include config snapshots (default: true)
+ * @param {Object} options.councilConfig - Optional council configuration to include
+ * @param {Object} options.loopConfig - Optional reasoning loop configuration to include
+ * @returns {Object} Evidence pack object
+ */
+export function generateEvidencePack(options = {}) {
+  const {
+    includeTranscript = true,
+    includeConfig = true,
+    councilConfig = null,
+    loopConfig = null
+  } = options;
+
+  const session = getSession();
+  const summary = getSessionSummary();
+
+  const evidencePack = {
+    // Header
+    packVersion: "1.0.0",
+    generatedAt: new Date().toISOString(),
+    sessionId: session.id,
+    sessionCreatedAt: session.createdAt,
+
+    // Summary metrics
+    summary: {
+      duration: summary.duration,
+      durationFormatted: formatDuration(summary.duration),
+      totalCalls: summary.totalCalls,
+      totalTokens: summary.totalTokens,
+      errors: summary.errors,
+      denials: summary.denials,
+      consensusRuns: summary.consensusRuns
+    },
+
+    // Model usage breakdown
+    modelUsage: summary.modelUsage,
+
+    // Decision audit trail
+    routingDecisions: session.metrics.routingDecisions || [],
+    memoryEvents: session.metrics.memoryEvents || [],
+    securityEvents: session.metrics.securityEvents || [],
+
+    // Denials (security audit)
+    denials: session.denials || [],
+
+    // Reproducibility
+    reproducible: {
+      nodeVersion: process.version,
+      platform: process.platform,
+      sessionMode: session.mode,
+      ...(includeConfig && councilConfig ? { councilConfig } : {}),
+      ...(includeConfig && loopConfig ? { loopConfig } : {})
+    },
+
+    // Full trace (optional)
+    ...(includeTranscript ? { transcript: session.transcript } : {})
+  };
+
+  return evidencePack;
+}
+
+/**
+ * Format duration in human-readable form.
+ * @param {number} ms - Duration in milliseconds
+ * @returns {string} Formatted duration
+ */
+function formatDuration(ms) {
+  if (ms < 1000) return `${ms}ms`;
+  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
+  if (ms < 3600000) return `${(ms / 60000).toFixed(1)}m`;
+  return `${(ms / 3600000).toFixed(1)}h`;
+}
+
+/**
+ * Save evidence pack to file.
+ * @param {Object} pack - Evidence pack from generateEvidencePack
+ * @param {string} filename - Optional filename (default: auto-generated)
+ * @returns {string} Path to saved file
+ */
+export function saveEvidencePack(pack, filename = null) {
+  ensureSessionDir();
+
+  const fname = filename || `evidence_${pack.sessionId}_${Date.now()}.json`;
+  const path = join(SESSION_DIR, fname);
+
+  writeFileSync(path, JSON.stringify(pack, null, 2));
+  return path;
+}
+
+/**
+ * Generate a minimal evidence pack for cost reporting.
+ * @returns {Object} Cost-focused evidence pack
+ */
+export function generateCostEvidencePack() {
+  const session = getSession();
+
+  return {
+    generatedAt: new Date().toISOString(),
+    sessionId: session.id,
+    totalCalls: session.metrics.totalCalls,
+    totalTokens: session.metrics.totalTokens,
+    modelUsage: session.metrics.modelUsage,
+    consensusRuns: session.metrics.consensusRuns || 0,
+    // Include cost estimate if available
+    estimatedCost: estimateTotalCost(session.metrics)
+  };
+}
+
+/**
+ * Estimate total cost from metrics.
+ * Uses rough per-token pricing estimates.
+ * @param {Object} metrics - Session metrics
+ * @returns {Object} Cost estimate
+ */
+function estimateTotalCost(metrics) {
+  // Rough per-1K token estimates (input/output)
+  const PRICING = {
+    claude45: { input: 0.015, output: 0.075 },
+    gpt51: { input: 0.01, output: 0.03 },
+    gpt4o: { input: 0.005, output: 0.015 },
+    deepseek: { input: 0.0014, output: 0.0028 },
+    gemini: { input: 0.00025, output: 0.0005 },
+    minimax: { input: 0.00015, output: 0.0006 },
+    default: { input: 0.001, output: 0.002 }
+  };
+
+  let totalCost = 0;
+  const breakdown = {};
+
+  for (const [model, callCount] of Object.entries(metrics.modelUsage || {})) {
+    const pricing = PRICING[model] || PRICING.default;
+    // Estimate tokens per call (rough average)
+    const avgInputTokens = metrics.totalTokens.input / Math.max(metrics.totalCalls, 1);
+    const avgOutputTokens = metrics.totalTokens.output / Math.max(metrics.totalCalls, 1);
+
+    const modelCost =
+      (avgInputTokens / 1000) * pricing.input * callCount +
+      (avgOutputTokens / 1000) * pricing.output * callCount;
+
+    breakdown[model] = { calls: callCount, estimatedCost: modelCost };
+    totalCost += modelCost;
+  }
+
+  return {
+    totalEstimated: totalCost,
+    breakdown,
+    note: "Estimates based on average pricing. Actual costs may vary."
+  };
+}

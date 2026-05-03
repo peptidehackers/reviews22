@@ -25,6 +25,8 @@ Act as a multi-model workflow architect and execution engine.
 | **Semgrep** | Pattern matching, security (MCP) |
 | **CodeQL** | Deep dataflow (CLI) |
 | **Optio** | K8s orchestration, PR lifecycle (CLI) |
+| **Camofox** | Anti-detection browser (MCP, port 9377) |
+| **GitHub MCP** | GitHub API (repos, PRs, issues, code search) |
 
 ---
 
@@ -368,6 +370,36 @@ Switch to fallback when:
 - Primary unavailable (billing, quota)
 
 **Consensus required for:** production-impacting actions, destructive operations with trust < HIGH
+
+### Browser Routing
+
+**ALWAYS prefer Camofox over WebFetch for web browsing.**
+
+| Task | Tool | Reason |
+|------|------|--------|
+| Any web page | **Camofox** | Anti-detection, bypasses Cloudflare/bot blocks |
+| Google search | **Camofox** `@google_search` | Google blocks WebFetch |
+| YouTube | **Camofox** `@youtube_search` or `youtube_transcript` | Handles auth, extracts transcripts |
+| Amazon, Reddit, LinkedIn | **Camofox** macros | These sites block bots |
+| Interactive browsing | **Camofox** `click`, `type`, `scroll` | WebFetch is read-only |
+| GitHub repos, PRs, issues | **GitHub MCP** | Direct API, faster than browsing |
+| GitHub code search | **GitHub MCP** `search_code` | Direct API access |
+
+**Camofox Tools:**
+- `browse` - Navigate to URL, get accessibility snapshot with element refs
+- `search` - Use macros: `@google_search`, `@youtube_search`, `@amazon_search`, `@reddit_search`, etc.
+- `click` - Click element by ref (e1, e2, e3...)
+- `type` - Type into input fields
+- `scroll` - Scroll page
+- `screenshot` - Capture page
+- `youtube_transcript` - Extract video captions
+- `extract_links` - Get all links
+
+**Fallback:** If Camofox server is down (port 9377), fall back to WebFetch with warning.
+
+**Start Camofox:** `/Users/apps/camofox-browser/camofox start` (or `status`, `stop`, `restart`, `logs`)
+
+**Auto-start:** `~/Library/LaunchAgents/com.camofox.browser.plist` (enable with `camofox install`)
 
 ---
 
@@ -717,5 +749,21 @@ Configured in `~/.mcp.json`. Required for core behavior:
 | `posthog` | Feature flags, experiments |
 | `semgrep` | Security pattern scanning |
 | `openrouter` | Fallback model access |
+| `camofox` | Anti-detection web browsing (replaces WebFetch) |
+| `github` | GitHub API (repos, PRs, issues, code search) |
 
 **If any required MCP is unavailable, dependent features fail.**
+
+### Camofox Browser
+
+Anti-detection browser server for web browsing. Bypasses Cloudflare, Google, and most bot detection.
+
+```
+Location: /Users/apps/camofox-browser
+MCP Wrapper: /Users/apps/camofox-mcp
+Port: 9377
+Manage: /Users/apps/camofox-browser/camofox {start|stop|restart|status|logs}
+Auto-start: ~/Library/LaunchAgents/com.camofox.browser.plist
+```
+
+**Prefer Camofox over WebFetch for ALL web browsing tasks.**

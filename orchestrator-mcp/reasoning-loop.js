@@ -44,6 +44,10 @@ const DEFAULT_CONFIG = {
   convergenceThreshold: 0.05,
   minConfidenceForHalt: 0.7,
 
+  // Plateau detection (claude-code-harness pattern)
+  plateauThreshold: 0.03,        // Max confidence delta to trigger plateau
+  plateauIterations: 4,          // Min iterations to check for plateau
+
   // LTI stability parameters (spectral radius < 1 by construction)
   stateDecay: 0.85,
   inputInjection: 0.3,
@@ -549,6 +553,36 @@ export class ReasoningState {
           halt: true,
           reason: "convergence",
           value: delta
+        };
+      }
+    }
+
+    // PLATEAU DETECTION (claude-code-harness pattern)
+    // Detect when reasoning loop makes no meaningful progress over 4+ iterations
+    // This prevents wasted computation when models are stuck
+    if (n >= 4) {
+      const recentFour = this.confidenceHistory.slice(-4);
+      // Calculate max delta across consecutive iterations
+      let maxDelta = 0;
+      for (let i = 1; i < recentFour.length; i++) {
+        const iterDelta = Math.abs(recentFour[i] - recentFour[i - 1]);
+        if (iterDelta > maxDelta) maxDelta = iterDelta;
+      }
+
+      // Plateau threshold: 0.03 (3% max movement over 4 iterations)
+      const plateauThreshold = LOOP_CONFIG.plateauThreshold || 0.03;
+      if (maxDelta < plateauThreshold) {
+        return {
+          halt: true,
+          reason: "plateau_detected",
+          value: maxDelta,
+          suggestConsultation: true, // Flag for advisor pattern
+          plateauDetails: {
+            iterations: 4,
+            maxDelta,
+            confidenceRange: [Math.min(...recentFour), Math.max(...recentFour)],
+            avgConfidence: recentFour.reduce((a, b) => a + b, 0) / 4
+          }
         };
       }
     }

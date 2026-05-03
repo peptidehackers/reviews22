@@ -99,6 +99,27 @@ import {
   formatReasoningResult,
   LOOP_CONFIG
 } from "./reasoning-loop.js";
+import {
+  runPreflightChecks,
+  formatPreflightResult,
+  listPreflightChecks,
+  CHECK_SEVERITY
+} from "./preflight.js";
+import {
+  preflightConsultation,
+  correctiveConsultation,
+  plateauConsultation,
+  formatAdvisorResponse,
+  recordFailure,
+  recordSuccess,
+  getTracking,
+  CONSULTATION_TYPE
+} from "./advisor.js";
+import {
+  generateEvidencePack,
+  saveEvidencePack,
+  generateCostEvidencePack
+} from "./session.js";
 
 const server = new Server(
   {
@@ -755,6 +776,130 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ["task"],
+        },
+      },
+      // === PREFLIGHT CHECKS (claude-code-harness pattern) ===
+      {
+        name: "preflight_check",
+        description:
+          "Run preflight validation checks before task execution. Validates code context, entry points, memory availability, prompt safety, and configuration. Returns a ready/blocked status with detailed check results.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            bug_description: {
+              type: "string",
+              description: "Bug or task description to validate",
+            },
+            code_context: {
+              type: "string",
+              description: "Optional code context to validate",
+            },
+            entry_points: {
+              type: "array",
+              items: { type: "string" },
+              description: "Optional entry points for Axon integration",
+            },
+            models: {
+              type: "array",
+              items: { type: "string" },
+              description: "Optional models to use",
+            },
+            council_mode: {
+              type: "string",
+              enum: ["quick", "standard", "full", "auto"],
+              description: "Council mode to validate",
+            },
+            skip_checks: {
+              type: "array",
+              items: { type: "string" },
+              description: "Check names to skip",
+            },
+          },
+          required: ["bug_description"],
+        },
+      },
+      // === ADVISOR CONSULTATION (claude-code-harness pattern) ===
+      {
+        name: "advisor_consult",
+        description:
+          "Consult the advisor for guidance on a task. Supports preflight consultation (before high-risk tasks), corrective consultation (after repeated failures), and plateau consultation (when reasoning loop stalls).",
+        inputSchema: {
+          type: "object",
+          properties: {
+            consultation_type: {
+              type: "string",
+              enum: ["preflight", "corrective", "plateau"],
+              description: "Type of consultation to request",
+            },
+            task_description: {
+              type: "string",
+              description: "Description of the task",
+            },
+            risk_level: {
+              type: "string",
+              enum: ["high", "medium", "low"],
+              description: "Risk level for preflight consultation",
+            },
+            code_context: {
+              type: "string",
+              description: "Code context for analysis",
+            },
+            failures: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  error: { type: "string" },
+                  reason: { type: "string" },
+                },
+              },
+              description: "Failure history for corrective consultation",
+            },
+            plateau_details: {
+              type: "object",
+              description: "Plateau details from reasoning loop for plateau consultation",
+            },
+            iteration_history: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  summary: { type: "string" },
+                  confidence: { type: "number" },
+                },
+              },
+              description: "Iteration history for plateau consultation",
+            },
+          },
+          required: ["consultation_type", "task_description"],
+        },
+      },
+      // === EVIDENCE PACK (claude-code-harness pattern) ===
+      {
+        name: "evidence_pack",
+        description:
+          "Generate an evidence pack for the current session. Provides auditable records with full traces, routing decisions, memory events, security events, and reproducible configuration snapshots.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            include_transcript: {
+              type: "boolean",
+              description: "Include full transcript (default: true)",
+            },
+            include_config: {
+              type: "boolean",
+              description: "Include config snapshots (default: true)",
+            },
+            save_to_file: {
+              type: "boolean",
+              description: "Save evidence pack to file (default: false)",
+            },
+            format: {
+              type: "string",
+              enum: ["full", "cost_only"],
+              description: "Evidence pack format: full or cost_only (default: full)",
+            },
+          },
         },
       },
     ],
@@ -2253,6 +2398,168 @@ ${recentSecurity}`;
         content: [{
           type: "text",
           text: formatReasoningResult(result)
+        }],
+      };
+    }
+
+    // === PREFLIGHT CHECK ===
+    if (name === "preflight_check") {
+      const {
+        bug_description,
+        code_context = "",
+        entry_points = [],
+        models = [],
+        council_mode,
+        skip_checks = []
+      } = args;
+
+      const taskContext = {
+        bugDescription: bug_description,
+        codeContext: code_context,
+        entryPoints: entry_points,
+        models,
+        councilMode: council_mode
+      };
+
+      const result = await runPreflightChecks(taskContext, { skipChecks: skip_checks });
+      const formatted = formatPreflightResult(result);
+
+      return {
+        content: [{
+          type: "text",
+          text: formatted
+        }],
+      };
+    }
+
+    // === ADVISOR CONSULT ===
+    if (name === "advisor_consult") {
+      const {
+        consultation_type,
+        task_description,
+        risk_level = "medium",
+        code_context = "",
+        failures = [],
+        plateau_details = {},
+        iteration_history = []
+      } = args;
+
+      let result;
+
+      if (consultation_type === "preflight") {
+        result = await preflightConsultation({
+          description: task_description,
+          riskLevel: risk_level,
+          codeContext: code_context,
+          entryPoints: []
+        });
+      } else if (consultation_type === "corrective") {
+        result = await correctiveConsultation({
+          taskId: `task_${Date.now()}`,
+          taskDescription: task_description,
+          failures,
+          attemptCount: failures.length
+        });
+      } else if (consultation_type === "plateau") {
+        result = await plateauConsultation({
+          originalTask: task_description,
+          plateauDetails: plateau_details,
+          iterationHistory: iteration_history
+        });
+      } else {
+        return {
+          content: [{
+            type: "text",
+            text: `Unknown consultation type: ${consultation_type}. Use: preflight, corrective, or plateau.`
+          }],
+          isError: true,
+        };
+      }
+
+      const formatted = formatAdvisorResponse(result);
+
+      return {
+        content: [{
+          type: "text",
+          text: formatted
+        }],
+      };
+    }
+
+    // === EVIDENCE PACK ===
+    if (name === "evidence_pack") {
+      const {
+        include_transcript = true,
+        include_config = true,
+        save_to_file = false,
+        format = "full"
+      } = args;
+
+      let pack;
+
+      if (format === "cost_only") {
+        pack = generateCostEvidencePack();
+      } else {
+        pack = generateEvidencePack({
+          includeTranscript: include_transcript,
+          includeConfig: include_config,
+          councilConfig: null,  // Could pass actual config here
+          loopConfig: LOOP_CONFIG
+        });
+      }
+
+      let savedPath = null;
+      if (save_to_file) {
+        savedPath = saveEvidencePack(pack);
+      }
+
+      const lines = [];
+      lines.push("## Evidence Pack Generated");
+      lines.push("");
+      lines.push(`**Session ID:** ${pack.sessionId}`);
+      lines.push(`**Generated:** ${pack.generatedAt}`);
+      lines.push("");
+
+      if (pack.summary) {
+        lines.push("### Summary");
+        lines.push(`- Duration: ${pack.summary.durationFormatted || "N/A"}`);
+        lines.push(`- Total Calls: ${pack.summary.totalCalls || 0}`);
+        lines.push(`- Errors: ${pack.summary.errors || 0}`);
+        lines.push(`- Consensus Runs: ${pack.summary.consensusRuns || 0}`);
+        lines.push("");
+      }
+
+      if (pack.modelUsage) {
+        lines.push("### Model Usage");
+        for (const [model, count] of Object.entries(pack.modelUsage)) {
+          lines.push(`- ${model}: ${count} calls`);
+        }
+        lines.push("");
+      }
+
+      if (pack.estimatedCost) {
+        lines.push("### Cost Estimate");
+        lines.push(`- Total: $${pack.estimatedCost.totalEstimated?.toFixed(4) || "0.0000"}`);
+        lines.push("");
+      }
+
+      if (savedPath) {
+        lines.push(`### Saved to: ${savedPath}`);
+        lines.push("");
+      }
+
+      lines.push("### Full Pack Data");
+      lines.push("```json");
+      lines.push(JSON.stringify(pack, null, 2).substring(0, 3000));
+      if (JSON.stringify(pack).length > 3000) {
+        lines.push("... (truncated)");
+      }
+      lines.push("```");
+
+      return {
+        content: [{
+          type: "text",
+          text: lines.join("\n")
         }],
       };
     }

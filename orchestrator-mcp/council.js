@@ -151,6 +151,98 @@ Return JSON only:
 }`;
 
 // ============================================================================
+// 4-Perspective Review Schema (claude-code-harness pattern)
+// ============================================================================
+
+/**
+ * Multi-perspective review lenses for comprehensive analysis.
+ * Each lens focuses on a specific aspect of code quality.
+ */
+export const REVIEW_PERSPECTIVES = {
+  SECURITY: {
+    name: "Security",
+    focus: "Vulnerabilities, injection points, auth gaps, data exposure",
+    schema: `Analyze from a SECURITY perspective:
+- Injection risks (SQL, XSS, command, etc.)
+- Authentication/authorization gaps
+- Data exposure or leakage
+- Secrets handling issues
+- Input validation weaknesses
+Return JSON: {"severity": "high|medium|low", "findings": [...], "recommendations": [...]}`
+  },
+  PERFORMANCE: {
+    name: "Performance",
+    focus: "Bottlenecks, memory issues, scaling concerns, efficiency",
+    schema: `Analyze from a PERFORMANCE perspective:
+- Algorithmic complexity (O(n²) or worse)
+- Memory leaks or excessive allocation
+- Database query inefficiency (N+1, missing indexes)
+- Caching opportunities missed
+- Scalability limitations
+Return JSON: {"severity": "high|medium|low", "findings": [...], "recommendations": [...]}`
+  },
+  QUALITY: {
+    name: "Quality",
+    focus: "Code patterns, naming, maintainability, readability",
+    schema: `Analyze from a CODE QUALITY perspective:
+- Unclear or misleading naming
+- Overly complex functions (cyclomatic complexity)
+- Code duplication
+- Poor separation of concerns
+- Missing error handling
+Return JSON: {"severity": "high|medium|low", "findings": [...], "recommendations": [...]}`
+  },
+  RELIABILITY: {
+    name: "Reliability",
+    focus: "Edge cases, error handling, test coverage, race conditions",
+    schema: `Analyze from a RELIABILITY perspective:
+- Unhandled edge cases
+- Race conditions or concurrency issues
+- Missing error handling
+- Insufficient validation
+- Test coverage gaps
+Return JSON: {"severity": "high|medium|low", "findings": [...], "recommendations": [...]}`
+  }
+};
+
+/**
+ * 4-perspective synthesis schema for chairman.
+ * Integrates findings from all four lenses.
+ */
+const MULTI_PERSPECTIVE_SYNTHESIS_SCHEMA = `You are synthesizing analyses from 4 expert perspectives: Security, Performance, Quality, and Reliability.
+
+Return JSON only:
+{
+  "overall_assessment": "high-level summary across all perspectives",
+  "security_summary": {
+    "severity": "high|medium|low|none",
+    "top_concerns": ["concern1"],
+    "action_required": true|false
+  },
+  "performance_summary": {
+    "severity": "high|medium|low|none",
+    "top_concerns": ["concern1"],
+    "action_required": true|false
+  },
+  "quality_summary": {
+    "severity": "high|medium|low|none",
+    "top_concerns": ["concern1"],
+    "action_required": true|false
+  },
+  "reliability_summary": {
+    "severity": "high|medium|low|none",
+    "top_concerns": ["concern1"],
+    "action_required": true|false
+  },
+  "priority_order": ["Security", "Reliability", "Performance", "Quality"],
+  "blocking_issues": ["issue that must be fixed before merge"],
+  "recommended_actions": [
+    {"perspective": "Security", "action": "what to do", "priority": 1}
+  ],
+  "confidence": 0.0-1.0
+}`;
+
+// ============================================================================
 // Anonymization Utilities
 // ============================================================================
 

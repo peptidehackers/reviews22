@@ -386,7 +386,23 @@ export async function buildConsensus(prompt, models, options = {}) {
     securityContext = {}
   } = options;
 
-  const externalModels = models.filter((model) => model !== "claude");
+  // Normalize models to array (handles string JSON, comma-separated, or array)
+  let normalizedModels;
+  if (Array.isArray(models)) {
+    normalizedModels = models;
+  } else if (typeof models === "string") {
+    // Try JSON parse first, then comma-separated
+    try {
+      normalizedModels = JSON.parse(models);
+      if (!Array.isArray(normalizedModels)) normalizedModels = [normalizedModels];
+    } catch {
+      normalizedModels = models.split(",").map(m => m.trim()).filter(Boolean);
+    }
+  } else {
+    normalizedModels = [];
+  }
+
+  const externalModels = normalizedModels.filter((model) => model !== "claude");
 
   if (externalModels.length === 0) {
     return {
